@@ -1,0 +1,2303 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIKESLING — Sistem Antrian Kesehatan Lingkungan</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --teal: #0a7e6e;
+  --teal-light: #0fb99f;
+  --teal-pale: #e6f7f5;
+  --teal-dark: #054d43;
+  --sky: #1a9fd8;
+  --sky-light: #e8f5fd;
+  --accent: #f59e0b;
+  --accent-light: #fef3c7;
+  --red: #e53e3e;
+  --red-light: #fff5f5;
+  --green: #38a169;
+  --green-light: #f0fff4;
+  --purple: #7c3aed;
+  --purple-light: #f5f3ff;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --white: #ffffff;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow: 0 4px 16px rgba(0,0,0,0.10);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.14);
+  --radius: 12px;
+  --radius-lg: 20px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--gray-50);color:var(--gray-800);min-height:100vh}
+
+/* ============ WELCOME OVERLAY ============ */
+#welcomeOverlay{position:fixed;inset:0;background:linear-gradient(135deg,var(--teal-dark) 0%,var(--teal) 60%,var(--sky) 100%);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--white);text-align:center;transition:opacity .8s,visibility .8s}
+#welcomeOverlay.hide{opacity:0;visibility:hidden}
+.welcome-logo{font-size:80px;margin-bottom:16px;animation:bounce 1s ease-in-out}
+@keyframes bounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-20px)}60%{transform:translateY(-10px)}}
+.welcome-title{font-size:32px;font-weight:800;font-family:'Space Grotesk',sans-serif;margin-bottom:8px}
+.welcome-sub{font-size:16px;opacity:.85;max-width:480px;line-height:1.6;margin-bottom:24px}
+.welcome-bar{width:200px;height:4px;background:rgba(255,255,255,0.2);border-radius:4px;overflow:hidden;margin:0 auto}
+.welcome-progress{height:100%;background:var(--white);border-radius:4px;animation:loadProg 3.5s linear forwards}
+@keyframes loadProg{from{width:0}to{width:100%}}
+.welcome-voice-note{font-size:12px;opacity:.65;margin-top:12px;animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:.65}50%{opacity:.3}}
+@keyframes tapPulse{0%,100%{transform:scale(1);box-shadow:0 4px 24px rgba(0,0,0,0.18)}50%{transform:scale(1.06);box-shadow:0 6px 32px rgba(255,255,255,0.25)}}
+
+/* ============ ADMIN LOGIN OVERLAY ============ */
+#adminLoginOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center;padding:16px}
+#adminLoginOverlay.open{display:flex}
+.login-card{background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:100%;max-width:380px;overflow:hidden;animation:slideUp .25s}
+.login-header{background:linear-gradient(135deg,var(--teal-dark),var(--teal));padding:28px 24px;color:var(--white);text-align:center}
+.login-header .lock-icon{font-size:42px;margin-bottom:10px}
+.login-header h2{font-size:20px;font-weight:800;font-family:'Space Grotesk',sans-serif}
+.login-header p{font-size:13px;opacity:.8;margin-top:4px}
+.login-body{padding:28px 24px}
+.login-error{background:var(--red-light);border:1px solid #fed7d7;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red);font-weight:600;margin-bottom:16px;display:none}
+.login-error.show{display:block}
+.login-hint{background:var(--teal-pale);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--teal-dark);margin-top:14px;text-align:center}
+
+/* ============ NAV ============ */
+nav{background:var(--teal-dark);padding:0 24px;display:flex;align-items:center;height:60px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.nav-brand{display:flex;align-items:center;gap:10px;color:var(--white);font-weight:800;font-size:18px;font-family:'Space Grotesk',sans-serif}
+.nav-brand svg{width:28px;height:28px}
+.nav-tabs{display:flex;gap:4px;margin-left:32px;flex:1}
+.nav-tab{padding:6px 16px;border-radius:8px;border:none;background:transparent;color:rgba(255,255,255,0.7);font-size:13px;font-weight:600;cursor:pointer;transition:.2s;font-family:inherit}
+.nav-tab:hover{background:rgba(255,255,255,0.12);color:var(--white)}
+.nav-tab.active{background:var(--teal-light);color:var(--white)}
+.nav-badge{background:var(--accent);color:var(--gray-900);font-size:10px;font-weight:800;border-radius:6px;padding:1px 6px;margin-left:4px}
+.nav-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.btn-logout{padding:5px 12px;border-radius:8px;border:none;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);font-size:12px;font-weight:600;cursor:pointer;transition:.2s;display:none}
+.btn-logout:hover{background:rgba(255,255,255,0.25);color:var(--white)}
+.btn-logout.visible{display:block}
+
+/* ============ PAGES ============ */
+.page{display:none;padding:28px 24px;max-width:1200px;margin:0 auto;animation:fadeIn .3s}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ============ QUEUE DISPLAY (LANDING) ============ */
+.queue-hero{background:linear-gradient(135deg,var(--teal-dark) 0%,var(--teal) 60%,var(--sky) 100%);border-radius:var(--radius-lg);padding:32px;color:var(--white);margin-bottom:24px;position:relative;overflow:hidden}
+.queue-hero::before{content:'';position:absolute;right:-40px;top:-40px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,0.06)}
+.queue-hero::after{content:'';position:absolute;right:60px;bottom:-60px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,0.04)}
+.queue-hero h1{font-size:26px;font-weight:800;margin-bottom:4px;font-family:'Space Grotesk',sans-serif}
+.queue-hero p{opacity:.8;font-size:14px}
+.now-serving{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.serving-card{background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);border-radius:var(--radius);padding:16px;border:1px solid rgba(255,255,255,0.2)}
+.serving-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.7;margin-bottom:6px}
+.serving-number{font-size:42px;font-weight:800;font-family:'Space Grotesk',sans-serif;line-height:1}
+.serving-name{font-size:13px;opacity:.85;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.serving-dest{font-size:11px;opacity:.65;margin-top:2px}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat-card{background:var(--white);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow-sm);text-align:center;border-top:3px solid var(--teal-light)}
+.stat-num{font-size:30px;font-weight:800;color:var(--teal);font-family:'Space Grotesk',sans-serif}
+.stat-label{font-size:12px;color:var(--gray-500);font-weight:500;margin-top:2px}
+
+.queue-list-wrap{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.section-header{padding:16px 20px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;justify-content:space-between}
+.section-header h2{font-size:15px;font-weight:700;color:var(--gray-800)}
+.badge{font-size:11px;font-weight:700;border-radius:6px;padding:3px 8px}
+.badge-green{background:var(--green-light);color:var(--green)}
+.badge-teal{background:var(--teal-pale);color:var(--teal)}
+.badge-amber{background:var(--accent-light);color:#b45309}
+.badge-red{background:var(--red-light);color:var(--red)}
+.badge-gray{background:var(--gray-100);color:var(--gray-600)}
+.badge-purple{background:var(--purple-light);color:var(--purple)}
+
+.queue-table{width:100%;border-collapse:collapse}
+.queue-table th{background:var(--gray-50);padding:10px 16px;font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;text-align:left}
+.queue-table td{padding:10px 16px;font-size:13px;border-bottom:1px solid var(--gray-100);vertical-align:middle}
+.queue-table tr:last-child td{border-bottom:none}
+.queue-table tr:hover td{background:var(--gray-50)}
+.queue-num{font-size:15px;font-weight:800;color:var(--teal);font-family:'Space Grotesk',sans-serif}
+.queue-row-active td{background:var(--teal-pale)!important}
+
+/* ============ REGISTRATION ============ */
+.reg-grid{display:grid;grid-template-columns:1fr 380px;gap:24px}
+.form-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden}
+.form-card-header{background:linear-gradient(135deg,var(--teal) 0%,var(--sky) 100%);padding:20px 24px;color:var(--white)}
+.form-card-header h2{font-size:18px;font-weight:800;font-family:'Space Grotesk',sans-serif}
+.form-card-header p{font-size:13px;opacity:.8;margin-top:4px}
+.form-body{padding:24px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.form-group{margin-bottom:14px}
+.form-group.full{grid-column:1/-1}
+label{display:block;font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+input,select,textarea{width:100%;padding:10px 12px;border:2px solid var(--gray-200);border-radius:8px;font-size:14px;font-family:inherit;color:var(--gray-800);background:var(--white);transition:.2s;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--teal-light);box-shadow:0 0 0 3px rgba(15,185,159,0.12)}
+textarea{resize:vertical;min-height:80px}
+.btn{padding:11px 20px;border-radius:8px;border:none;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;font-family:inherit;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:var(--teal);color:var(--white)}
+.btn-primary:hover{background:var(--teal-dark);transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn-danger{background:var(--red);color:var(--white)}
+.btn-danger:hover{background:#c53030}
+.btn-sky{background:var(--sky);color:var(--white)}
+.btn-sky:hover{background:#1681af}
+.btn-amber{background:var(--accent);color:var(--gray-900)}
+.btn-amber:hover{background:#d97706}
+.btn-ghost{background:var(--gray-100);color:var(--gray-700)}
+.btn-ghost:hover{background:var(--gray-200)}
+.btn-purple{background:var(--purple);color:var(--white)}
+.btn-purple:hover{background:#6d28d9}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-full{width:100%;justify-content:center}
+
+/* Upload & Signature */
+.upload-zone{border:2px dashed var(--gray-300);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:.2s;background:var(--gray-50)}
+.upload-zone:hover{border-color:var(--teal-light);background:var(--teal-pale)}
+.upload-zone input{display:none}
+.upload-preview{max-width:100%;max-height:120px;border-radius:6px;margin-top:8px}
+.sig-canvas-wrap{border:2px solid var(--gray-200);border-radius:8px;background:var(--white);position:relative}
+#sigCanvas{display:block;border-radius:8px;cursor:crosshair;touch-action:none}
+.sig-actions{display:flex;gap:8px;margin-top:8px}
+
+/* Ticket card */
+.ticket-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;position:sticky;top:80px}
+.ticket-top{background:linear-gradient(135deg,var(--teal-dark),var(--teal));padding:20px;color:var(--white);text-align:center}
+.ticket-num{font-size:60px;font-weight:800;font-family:'Space Grotesk',sans-serif;line-height:1}
+.ticket-label{font-size:12px;opacity:.75;text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+.ticket-body{padding:16px}
+.ticket-row{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px dashed var(--gray-200);font-size:13px}
+.ticket-row:last-child{border-bottom:none}
+.ticket-key{color:var(--gray-500);font-weight:500;font-size:12px}
+.ticket-val{font-weight:600;text-align:right;max-width:180px;word-break:break-word}
+.ticket-qr{text-align:center;padding:12px;background:var(--gray-50);border-radius:8px;margin-top:8px;font-size:12px;color:var(--gray-500)}
+
+/* Tanggapan petugas banner */
+.response-banner{border-radius:var(--radius);padding:14px 16px;margin-top:10px;font-size:13px;line-height:1.6;border-left:4px solid var(--teal);background:var(--teal-pale);color:var(--teal-dark);display:none}
+.response-banner.show{display:block}
+.response-banner strong{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;opacity:.7}
+
+/* ============ ADMIN ============ */
+.admin-layout{display:grid;grid-template-columns:220px 1fr;gap:0;background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);min-height:600px;overflow:hidden}
+.admin-sidebar{background:var(--gray-800);padding:0}
+.admin-sidebar-header{padding:20px 16px;border-bottom:1px solid rgba(255,255,255,0.1)}
+.admin-sidebar-header h3{color:var(--white);font-size:14px;font-weight:700}
+.admin-sidebar-header p{color:var(--gray-400);font-size:11px;margin-top:2px}
+.admin-menu{list-style:none}
+.admin-menu li a{display:flex;align-items:center;gap:10px;padding:11px 16px;color:rgba(255,255,255,0.65);text-decoration:none;font-size:13px;font-weight:500;transition:.2s;cursor:pointer;border-left:3px solid transparent}
+.admin-menu li a:hover{background:rgba(255,255,255,0.08);color:var(--white)}
+.admin-menu li a.active{background:rgba(15,185,159,0.18);color:var(--teal-light);border-left-color:var(--teal-light)}
+.admin-content{padding:24px;overflow-y:auto}
+.admin-section{display:none}
+.admin-section.active{display:block}
+.admin-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.admin-topbar h2{font-size:18px;font-weight:800}
+.admin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+.admin-stat{background:var(--gray-50);border-radius:var(--radius);padding:16px;border-left:4px solid var(--teal)}
+.admin-stat .num{font-size:28px;font-weight:800;color:var(--teal);font-family:'Space Grotesk',sans-serif}
+.admin-stat .lbl{font-size:12px;color:var(--gray-500);margin-top:2px}
+
+.tbl-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--gray-200)}
+table.data-table{width:100%;border-collapse:collapse}
+table.data-table th{background:var(--gray-50);padding:10px 14px;font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;text-align:left;white-space:nowrap}
+table.data-table td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--gray-100);vertical-align:middle}
+table.data-table tr:last-child td{border-bottom:none}
+table.data-table tr:hover td{background:var(--gray-50)}
+.avatar-sm{width:32px;height:32px;border-radius:50%;background:var(--teal-pale);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--teal);margin-right:8px;vertical-align:middle}
+.photo-thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;border:1px solid var(--gray-200)}
+
+.call-btn-area{background:var(--teal-pale);border-radius:var(--radius);padding:20px;margin-bottom:20px;display:flex;align-items:center;gap:16px}
+.call-info{flex:1}
+.call-info h3{font-size:16px;font-weight:700;color:var(--teal-dark)}
+.call-info p{font-size:13px;color:var(--gray-600);margin-top:2px}
+
+/* Tanggapan admin */
+.response-section{background:var(--gray-50);border-radius:var(--radius);padding:20px;margin-bottom:20px;border:1px solid var(--gray-200)}
+.response-section h3{font-size:14px;font-weight:700;margin-bottom:14px;color:var(--gray-700)}
+.response-item{background:var(--white);border-radius:8px;padding:14px;margin-bottom:12px;border:1px solid var(--gray-200)}
+.response-item h4{font-size:12px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.response-item textarea{min-height:70px;font-size:13px}
+.response-item .response-preview{font-size:13px;color:var(--gray-600);background:var(--teal-pale);border-radius:6px;padding:8px 10px;margin-top:6px;display:none;line-height:1.5}
+.response-item .response-preview.show{display:block}
+.response-save-btn{margin-top:8px}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:100%;max-width:520px;max-height:90vh;overflow-y:auto;animation:slideUp .25s}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{font-size:16px;font-weight:700}
+.modal-close{background:var(--gray-100);border:none;border-radius:6px;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--gray-500)}
+.modal-body{padding:24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--gray-100);display:flex;gap:10px;justify-content:flex-end}
+
+/* Toast */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--gray-900);color:var(--white);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);opacity:0;transform:translateY(10px);transition:.3s;z-index:9990;display:flex;align-items:center;gap:8px;max-width:320px}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.success{background:var(--green)}
+#toast.error{background:var(--red)}
+#toast.info{background:var(--sky)}
+
+/* Voice indicator */
+.voice-indicator{display:inline-flex;align-items:center;gap:6px;background:var(--accent-light);color:#b45309;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px}
+.voice-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+.tag{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;background:var(--teal-pale);color:var(--teal)}
+
+/* Search bar */
+.search-bar{display:flex;gap:10px;margin-bottom:16px}
+.search-bar input{flex:1}
+.search-bar select{width:180px}
+
+/* Petugas card */
+.petugas-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.petugas-card{background:var(--gray-50);border-radius:var(--radius);padding:14px;border:1px solid var(--gray-200);text-align:center;position:relative}
+.petugas-card .avatar{width:52px;height:52px;border-radius:50%;background:var(--teal-pale);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--teal);margin:0 auto 8px}
+.petugas-card h4{font-size:13px;font-weight:700;margin-bottom:2px}
+.petugas-card p{font-size:11px;color:var(--gray-500)}
+.petugas-card .card-actions{display:flex;gap:6px;margin-top:10px;justify-content:center}
+.petugas-card .edit-btn{position:absolute;top:8px;right:8px}
+
+/* Upload data label as button */
+label.btn{display:inline-flex;align-items:center;gap:8px}
+
+/* Tindak lanjut per pasien */
+.tindak-item{background:var(--gray-50);border-radius:var(--radius);padding:14px;margin-bottom:10px;border:1px solid var(--gray-200);transition:.2s}
+.tindak-item:hover{border-color:var(--teal-light)}
+
+/* ============ PRINT STYLES ============ */
+@media print {
+  body * { visibility: hidden; }
+  #printArea, #printArea * { visibility: visible; }
+  #printArea {
+    position: fixed; top: 0; left: 0; width: 100%; z-index: 9999;
+    display: block !important;
+  }
+  .no-print { display: none !important; }
+}
+#printArea{display:none}
+.print-ticket{width:300px;margin:0 auto;font-family:'Space Grotesk',sans-serif;border:2px solid var(--gray-800);border-radius:12px;overflow:hidden}
+.print-header{background:var(--teal-dark);color:var(--white);text-align:center;padding:16px 12px}
+.print-header h1{font-size:14px;font-weight:700;margin-bottom:2px}
+.print-header p{font-size:10px;opacity:.75}
+.print-num{font-size:72px;font-weight:800;line-height:1;text-align:center;padding:20px 0;color:var(--teal-dark);border-bottom:2px dashed var(--gray-300)}
+.print-label{font-size:10px;text-align:center;color:var(--gray-500);text-transform:uppercase;letter-spacing:.1em;margin-top:-4px;padding-bottom:12px}
+.print-rows{padding:12px 16px}
+.print-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dotted var(--gray-200);font-size:11px}
+.print-row:last-child{border-bottom:none}
+.print-key{color:var(--gray-500)}
+.print-val{font-weight:700;text-align:right;max-width:170px}
+.print-footer{background:var(--gray-50);text-align:center;padding:10px;font-size:10px;color:var(--gray-500)}
+.print-barcode{font-size:24px;letter-spacing:3px;font-weight:700;text-align:center;padding:8px 0;font-family:monospace}
+
+/* Responsive */
+@media(max-width:768px){
+  .reg-grid{grid-template-columns:1fr}
+  .stats-row{grid-template-columns:1fr 1fr}
+  .now-serving{grid-template-columns:1fr}
+  .admin-layout{grid-template-columns:1fr}
+  .admin-sidebar{display:none}
+  .admin-grid{grid-template-columns:1fr 1fr}
+  .petugas-grid{grid-template-columns:1fr 1fr}
+  .form-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== WELCOME OVERLAY ===== -->
+<div id="welcomeOverlay">
+  <div class="welcome-logo">🏥</div>
+  <div class="welcome-title">Selamat Datang di SIKESLING</div>
+  <div class="welcome-sub">Sistem Antrian Kesehatan Lingkungan<br>Dinas Kesehatan — Layanan Terpadu</div>
+  <div class="welcome-bar"><div class="welcome-progress" id="welcomeProgressBar"></div></div>
+
+  <!-- Tombol tap to start — wajib untuk unlock audio di browser -->
+  <div id="welcomeTapArea" style="margin-top:28px">
+    <button id="welcomeTapBtn" onclick="startWelcomeWithSound()" style="
+      background:rgba(255,255,255,0.18);
+      border:2px solid rgba(255,255,255,0.7);
+      color:#fff;
+      font-size:17px;
+      font-weight:800;
+      font-family:'Space Grotesk',sans-serif;
+      padding:14px 36px;
+      border-radius:50px;
+      cursor:pointer;
+      letter-spacing:0.04em;
+      box-shadow:0 4px 24px rgba(0,0,0,0.18);
+      animation:tapPulse 1.4s ease-in-out infinite;
+      transition:background .2s;
+    ">
+      🔊 Ketuk untuk Memulai
+    </button>
+    <div style="font-size:12px;opacity:.65;margin-top:10px;animation:blink 1.4s infinite">
+      Ketuk tombol di atas untuk mengaktifkan suara sambutan
+    </div>
+  </div>
+
+  <div id="welcomePlayingInfo" style="display:none;margin-top:20px">
+    <div class="welcome-voice-note">🔊 Memutar sambutan suara...</div>
+  </div>
+</div>
+
+<!-- ===== ADMIN LOGIN OVERLAY ===== -->
+<div id="adminLoginOverlay">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="lock-icon">🔐</div>
+      <h2>Login Admin</h2>
+      <p>Masukkan password untuk mengakses panel admin</p>
+    </div>
+    <div class="login-body">
+      <div class="login-error" id="loginError">❌ Password salah! Coba lagi.</div>
+      <div class="form-group">
+        <label>Password Admin</label>
+        <input type="password" id="adminPasswordInput" placeholder="Masukkan password..." onkeydown="if(event.key==='Enter')doAdminLogin()">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="doAdminLogin()">🔓 Masuk Admin</button>
+      <div style="text-align:center;margin-top:14px">
+        <button class="btn btn-ghost btn-sm" onclick="closeAdminLogin()">← Kembali</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    SIKESLING
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('home',event)">🏥 Antrian</button>
+    <button class="nav-tab" onclick="showPage('daftar',event)">📝 Pendaftaran</button>
+    <button class="nav-tab" id="adminTabBtn" onclick="requestAdminPage(event)">⚙️ Admin <span class="nav-badge" id="navBadge">0</span></button>
+  </div>
+  <div class="nav-right">
+    <button class="btn-logout" id="btnLogout" onclick="logoutAdmin()">🚪 Keluar Admin</button>
+  </div>
+</nav>
+
+<!-- ========== HOME PAGE ========== -->
+<div id="page-home" class="page active">
+
+  <div class="queue-hero">
+    <h1>Sistem Antrian Kesehatan Lingkungan</h1>
+    <p>Dinas Kesehatan — Layanan Kesehatan Lingkungan Terpadu</p>
+    <div class="now-serving" id="nowServingDisplay">
+      <div class="serving-card">
+        <div class="serving-label">🔊 Sedang Dipanggil</div>
+        <div class="serving-number" id="currentNum">—</div>
+        <div class="serving-name" id="currentName">Belum ada antrian</div>
+        <div class="serving-dest" id="currentDest">—</div>
+      </div>
+      <div class="serving-card">
+        <div class="serving-label">⏭ Antrian Berikutnya</div>
+        <div class="serving-number" id="nextNum">—</div>
+        <div class="serving-name" id="nextName">—</div>
+        <div class="serving-dest" id="nextDest">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Total Hari Ini</div></div>
+    <div class="stat-card"><div class="stat-num" id="statWaiting">0</div><div class="stat-label">Menunggu</div></div>
+    <div class="stat-card"><div class="stat-num" id="statDone">0</div><div class="stat-label">Selesai</div></div>
+    <div class="stat-card"><div class="stat-num" id="statSkip">0</div><div class="stat-label">Dilewati</div></div>
+  </div>
+
+  <div class="queue-list-wrap">
+    <div class="section-header">
+      <h2>Daftar Antrian Hari Ini</h2>
+      <span class="badge badge-teal" id="listCount">0 antrian</span>
+    </div>
+    <table class="queue-table">
+      <thead>
+        <tr><th>No.</th><th>Nama Pasien</th><th>Layanan / Tujuan</th><th>Waktu Daftar</th><th>Status</th><th>Tanggapan Petugas</th></tr>
+      </thead>
+      <tbody id="queueTableBody">
+        <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">Belum ada antrian hari ini</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== DAFTAR PAGE ========== -->
+<div id="page-daftar" class="page">
+  <div class="reg-grid">
+    <div>
+      <div class="form-card">
+        <div class="form-card-header">
+          <h2>Formulir Pendaftaran Antrian</h2>
+          <p>Lengkapi data berikut untuk mendapatkan nomor antrian</p>
+        </div>
+        <div class="form-body">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nama Lengkap *</label>
+              <input type="text" id="regNama" placeholder="Nama sesuai KTP">
+            </div>
+            <div class="form-group">
+              <label>No. KTP / NIK *</label>
+              <input type="text" id="regNIK" placeholder="16 digit NIK">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tanggal Lahir</label>
+              <input type="date" id="regTTL">
+            </div>
+            <div class="form-group">
+              <label>Jenis Kelamin</label>
+              <select id="regJK">
+                <option value="">Pilih...</option>
+                <option>Laki-laki</option>
+                <option>Perempuan</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>No. HP / WhatsApp *</label>
+              <input type="tel" id="regHP" placeholder="08xx-xxxx-xxxx">
+            </div>
+            <div class="form-group">
+              <label>Email (untuk notifikasi) *</label>
+              <input type="email" id="regEmail" placeholder="email@contoh.com">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Alamat Lengkap</label>
+            <textarea id="regAlamat" placeholder="Jl. ..., RT/RW, Kelurahan, Kecamatan" rows="2"></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>No. BPJS / Kartu Peserta</label>
+              <input type="text" id="regBPJS" placeholder="Nomor kartu (opsional)">
+            </div>
+            <div class="form-group">
+              <label>Layanan / Tujuan *</label>
+              <select id="regLayanan" onchange="previewLayananResponse()">
+                <option value="">Pilih Layanan...</option>
+                <option>Konsultasi Kesehatan Lingkungan</option>
+                <option>Pemeriksaan Kualitas Air</option>
+                <option>Inspeksi Sanitasi Rumah</option>
+                <option>Pemeriksaan TTU (Tempat Umum)</option>
+                <option>Pengambilan Sampel Lingkungan</option>
+                <option>Konsultasi Vektor &amp; Penyakit</option>
+                <option>Pemeriksaan Makanan &amp; Minuman</option>
+                <option>Perizinan Sanitasi</option>
+                <option>Laporan Masalah Lingkungan</option>
+                <option>Lainnya</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Preview tanggapan petugas saat milih layanan -->
+          <div id="layananResponsePreview" class="response-banner">
+            <strong>💬 Informasi dari Petugas</strong>
+            <span id="layananResponseText"></span>
+          </div>
+
+          <div class="form-group">
+            <label>Keluhan / Keterangan</label>
+            <textarea id="regKeluhan" placeholder="Jelaskan keluhan atau keperluan Anda..." rows="2"></textarea>
+          </div>
+
+          <!-- Upload Foto Kartu/Identitas -->
+          <div class="form-group">
+            <label>Upload Foto Kartu Peserta / Identitas</label>
+            <div class="upload-zone" onclick="document.getElementById('fotoInput').click()">
+              <div style="font-size:28px">📷</div>
+              <div style="font-size:13px;color:var(--gray-500);margin-top:4px">Klik untuk upload foto KTP / Kartu BPJS</div>
+              <div style="font-size:11px;color:var(--gray-400);margin-top:2px">JPG, PNG — maks. 2MB</div>
+              <input type="file" id="fotoInput" accept="image/*" onchange="previewFoto(this)">
+            </div>
+            <img id="fotoPreview" class="upload-preview" style="display:none">
+          </div>
+
+          <!-- Tanda Tangan Digital -->
+          <div class="form-group">
+            <label>Tanda Tangan Digital *</label>
+            <div style="font-size:12px;color:var(--gray-500);margin-bottom:6px">Tanda tangani di kotak di bawah ini sebagai persetujuan pemeriksaan</div>
+            <div class="sig-canvas-wrap">
+              <canvas id="sigCanvas" width="480" height="130"></canvas>
+            </div>
+            <div class="sig-actions">
+              <button class="btn btn-ghost btn-sm" onclick="clearSig()">🗑 Hapus TTD</button>
+              <span id="sigStatus" style="font-size:12px;color:var(--gray-400);line-height:32px">Belum ditanda tangani</span>
+            </div>
+          </div>
+
+          <div style="background:var(--teal-pale);border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--teal-dark)">
+            ✅ Setelah mendaftar, notifikasi nomor antrian akan dikirim ke <strong>email Anda</strong> dan <strong>pengumuman suara</strong> akan diputar di loket.
+          </div>
+
+          <button class="btn btn-primary btn-full" onclick="submitRegistration()">
+            📋 Daftar &amp; Ambil Nomor Antrian
+          </button>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Ticket Sidebar -->
+    <div>
+      <div class="ticket-card" id="ticketCard" style="display:none">
+        <div class="ticket-top">
+          <div class="ticket-label">NOMOR ANTRIAN</div>
+          <div class="ticket-num" id="ticketNum">A001</div>
+          <div style="font-size:13px;opacity:.75;margin-top:4px" id="ticketLayanan">—</div>
+        </div>
+        <div class="ticket-body">
+          <div class="ticket-row"><span class="ticket-key">Nama</span><span class="ticket-val" id="ticketNama">—</span></div>
+          <div class="ticket-row"><span class="ticket-key">Layanan</span><span class="ticket-val" id="ticketSvc">—</span></div>
+          <div class="ticket-row"><span class="ticket-key">Waktu Daftar</span><span class="ticket-val" id="ticketTime">—</span></div>
+          <div class="ticket-row"><span class="ticket-key">Email</span><span class="ticket-val" id="ticketEmail">—</span></div>
+          <div class="ticket-row"><span class="ticket-key">Estimasi</span><span class="ticket-val" id="ticketEst">—</span></div>
+          <div class="ticket-row"><span class="ticket-key">Biaya</span><span class="ticket-val" id="ticketBiaya" style="color:var(--teal);font-weight:800">—</span></div>
+        </div>
+        <!-- Tanggapan Petugas di Tiket -->
+        <div style="padding:0 16px 8px" id="ticketResponseWrap" style="display:none">
+          <div style="background:var(--teal-pale);border-radius:8px;padding:12px;font-size:12px;color:var(--teal-dark)">
+            <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">💬 Tanggapan Petugas</div>
+            <div id="ticketResponseText">—</div>
+          </div>
+        </div>
+        <div style="padding:12px 16px">
+          <div class="ticket-qr">📧 Bukti antrian dikirim ke email Anda</div>
+          <button class="btn btn-primary btn-full" style="margin-top:8px" onclick="printTicket()">🖨 Cetak Tiket Antrian</button>
+          <button class="btn btn-ghost btn-full" style="margin-top:6px" onclick="daftarLagi()">📝 Daftar Lagi</button>
+        </div>
+      </div>
+
+      <!-- Before register: info card -->
+      <div id="preTicket">
+        <div class="form-card" style="text-align:center;padding:32px 24px">
+          <div style="font-size:48px;margin-bottom:12px">🏥</div>
+          <h3 style="font-size:16px;font-weight:700;margin-bottom:8px">Layanan Kesehatan Lingkungan</h3>
+          <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px;line-height:1.6">Isi formulir pendaftaran untuk mendapatkan nomor antrian. Nomor antrian akan dikonfirmasi via email &amp; suara.</p>
+          <div style="background:var(--gray-50);border-radius:8px;padding:12px;text-align:left">
+            <div style="font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:8px">JAM PELAYANAN</div>
+            <div id="jamPelayananDisplay"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== ADMIN PAGE ========== -->
+<div id="page-admin" class="page">
+  <div class="admin-layout">
+    <div class="admin-sidebar">
+      <div class="admin-sidebar-header">
+        <h3>⚙️ Admin Panel</h3>
+        <p>Kesehatan Lingkungan</p>
+      </div>
+      <ul class="admin-menu">
+        <li><a onclick="showAdminSection('adm-dashboard')" class="active">📊 Dashboard</a></li>
+        <li><a onclick="showAdminSection('adm-antrian')">🎯 Kelola Antrian</a></li>
+        <li><a onclick="showAdminSection('adm-pasien')">👤 Data Pasien</a></li>
+        <li><a onclick="showAdminSection('adm-petugas')">👨‍⚕️ Data Petugas</a></li>
+        <li><a onclick="showAdminSection('adm-tanggapan')">💬 Tanggapan & Tindak Lanjut</a></li>
+        <li><a onclick="showAdminSection('adm-laporan')">📋 Laporan</a></li>
+        <li><a onclick="showAdminSection('adm-pengaturan-layanan')">⏰ Pengaturan Layanan</a></li>
+        <li><a onclick="showAdminSection('adm-pengaturan')">🔑 Pengaturan</a></li>
+      </ul>
+    </div>
+    <div class="admin-content">
+
+      <!-- DASHBOARD -->
+      <div class="admin-section active" id="adm-dashboard">
+        <div class="admin-topbar">
+          <h2>Dashboard</h2>
+          <span id="currentDateDisplay" style="font-size:13px;color:var(--gray-500)"></span>
+        </div>
+        <div class="admin-grid">
+          <div class="admin-stat"><div class="num" id="adStatTotal">0</div><div class="lbl">Total Pendaftar Hari Ini</div></div>
+          <div class="admin-stat" style="border-color:var(--accent)"><div class="num" id="adStatWait" style="color:var(--accent)">0</div><div class="lbl">Menunggu Dipanggil</div></div>
+          <div class="admin-stat" style="border-color:var(--green)"><div class="num" id="adStatDone" style="color:var(--green)">0</div><div class="lbl">Selesai Dilayani</div></div>
+        </div>
+
+        <div class="call-btn-area">
+          <div class="call-info">
+            <h3>🔊 Panggil Antrian Berikutnya</h3>
+            <p id="callNextInfo">Klik tombol untuk memanggil pasien berikutnya dengan suara otomatis</p>
+          </div>
+          <button class="btn btn-primary" onclick="callNext()">📢 Panggil Berikutnya</button>
+          <button class="btn btn-amber" onclick="callAgain()">🔁 Ulangi</button>
+        </div>
+
+        <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--gray-200);overflow:hidden">
+          <div class="section-header">
+            <h2>Antrian Aktif</h2>
+            <span id="adActiveBadge" class="badge badge-amber">0 menunggu</span>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>No.</th><th>Nama</th><th>Layanan</th><th>Waktu</th><th>Status</th><th>Aksi</th></tr></thead>
+            <tbody id="adQueueTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- KELOLA ANTRIAN -->
+      <div class="admin-section" id="adm-antrian">
+        <div class="admin-topbar">
+          <h2>Kelola Antrian</h2>
+          <button class="btn btn-primary btn-sm" onclick="callNext()">📢 Panggil Berikutnya</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="data-table">
+            <thead><tr><th>No.</th><th>Nama Pasien</th><th>NIK</th><th>Layanan</th><th>Email</th><th>Status</th><th>Aksi</th></tr></thead>
+            <tbody id="adFullQueueTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DATA PASIEN -->
+      <div class="admin-section" id="adm-pasien">
+        <div class="admin-topbar">
+          <h2>Data Pasien</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="btn btn-primary btn-sm" style="cursor:pointer" title="Upload file CSV data pasien untuk import otomatis">
+              📂 Upload Data Pasien
+              <input type="file" id="uploadPasienInput" accept=".csv,.json" style="display:none" onchange="importPasienData(this)">
+            </label>
+            <button class="btn btn-sky btn-sm" onclick="exportData()">📤 Export CSV</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteAllConfirm()">🗑 Hapus Semua</button>
+          </div>
+        </div>
+        <div id="uploadPasienStatus" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+        <div class="search-bar">
+          <input type="text" id="searchPasien" placeholder="Cari nama / NIK / email..." oninput="renderPasienTable()">
+          <select id="filterLayanan" onchange="renderPasienTable()">
+            <option value="">Semua Layanan</option>
+            <option>Konsultasi Kesehatan Lingkungan</option>
+            <option>Pemeriksaan Kualitas Air</option>
+            <option>Inspeksi Sanitasi Rumah</option>
+            <option>Pemeriksaan TTU (Tempat Umum)</option>
+            <option>Pengambilan Sampel Lingkungan</option>
+            <option>Konsultasi Vektor &amp; Penyakit</option>
+            <option>Pemeriksaan Makanan &amp; Minuman</option>
+            <option>Perizinan Sanitasi</option>
+            <option>Laporan Masalah Lingkungan</option>
+            <option>Lainnya</option>
+          </select>
+        </div>
+        <div class="tbl-wrap">
+          <table class="data-table">
+            <thead><tr><th>No.</th><th>Foto ID</th><th>Nama</th><th>NIK</th><th>Layanan</th><th>Email</th><th>Tgl Daftar</th><th>TTD</th><th>Tanggapan</th><th>Aksi</th></tr></thead>
+            <tbody id="pasienTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DATA PETUGAS -->
+      <div class="admin-section" id="adm-petugas">
+        <div class="admin-topbar">
+          <h2>Data Petugas</h2>
+          <button class="btn btn-primary btn-sm" onclick="openAddPetugas()">+ Tambah Petugas</button>
+        </div>
+        <div class="petugas-grid" id="petugasGrid"></div>
+      </div>
+
+      <!-- ===== TANGGAPAN PETUGAS ===== -->
+      <div class="admin-section" id="adm-tanggapan">
+        <div class="admin-topbar">
+          <h2>💬 Tanggapan Petugas per Layanan & Pasien</h2>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sky btn-sm" onclick="downloadTindakLanjut()">⬇️ Download Hasil Tindak Lanjut</button>
+          </div>
+        </div>
+        <div style="background:var(--teal-pale);border-radius:var(--radius);padding:14px 16px;margin-bottom:20px;font-size:13px;color:var(--teal-dark)">
+          ℹ️ Isi tanggapan/instruksi untuk setiap jenis layanan. Pesan ini otomatis ditampilkan ke peserta saat mendaftar dan dicetak di tiket antrian.
+        </div>
+
+        <!-- Tindak Lanjut Per Pasien -->
+        <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--gray-200);margin-bottom:24px;overflow:hidden">
+          <div class="section-header" style="background:var(--purple-light)">
+            <h2 style="color:var(--purple)">📋 Tindak Lanjut Per Pasien (Individual)</h2>
+            <span class="badge badge-purple" id="tindakBadge">0 pasien</span>
+          </div>
+          <div style="padding:16px">
+            <p style="font-size:12px;color:var(--gray-500);margin-bottom:14px">Tambahkan catatan tindak lanjut spesifik untuk setiap pasien. File hasil tindak lanjut bisa diunduh untuk dokumentasi.</p>
+            <div id="tindakLanjutContainer">
+              <p style="text-align:center;padding:24px;color:var(--gray-400);font-size:13px">Belum ada pasien terdaftar</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="tanggapanContainer"></div>
+      </div>
+
+      <!-- LAPORAN -->
+      <div class="admin-section" id="adm-laporan">
+        <div class="admin-topbar"><h2>Laporan Harian</h2></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+          <div style="background:var(--gray-50);border-radius:var(--radius);padding:16px;border:1px solid var(--gray-200)">
+            <h3 style="font-size:14px;font-weight:700;margin-bottom:10px">Distribusi Layanan</h3>
+            <div id="laporanLayanan"></div>
+          </div>
+          <div style="background:var(--gray-50);border-radius:var(--radius);padding:16px;border:1px solid var(--gray-200)">
+            <h3 style="font-size:14px;font-weight:700;margin-bottom:10px">Ringkasan</h3>
+            <div id="laporanRingkasan"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PENGATURAN LAYANAN (JAM + BIAYA) -->
+      <div class="admin-section" id="adm-pengaturan-layanan">
+        <div class="admin-topbar"><h2>⏰ Pengaturan Layanan</h2></div>
+
+        <!-- JAM PELAYANAN -->
+        <div class="form-card" style="margin-bottom:24px">
+          <div class="form-card-header" style="background:linear-gradient(135deg,var(--teal),var(--sky))">
+            <h2>🕐 Jam Pelayanan</h2>
+            <p>Atur jadwal jam buka layanan — tampil di halaman pendaftaran pasien</p>
+          </div>
+          <div class="form-body">
+            <div id="jamPelayananEditor"></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="btn btn-ghost btn-sm" onclick="addJamPelayanan()">➕ Tambah Jadwal</button>
+              <button class="btn btn-primary btn-sm" onclick="saveJamPelayanan()">💾 Simpan Jam Pelayanan</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- BIAYA LAYANAN -->
+        <div class="form-card">
+          <div class="form-card-header" style="background:linear-gradient(135deg,var(--accent),#d97706)">
+            <h2>💰 Biaya Layanan</h2>
+            <p>Atur rincian biaya untuk setiap jenis layanan (0 = Gratis)</p>
+          </div>
+          <div class="form-body">
+            <div id="biayaLayananEditor"></div>
+            <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="saveBiayaLayanan()">💾 Simpan Biaya</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PENGATURAN (UBAH PASSWORD) -->
+      <div class="admin-section" id="adm-pengaturan">
+        <div class="admin-topbar"><h2>🔑 Pengaturan Keamanan</h2></div>
+        <div style="max-width:480px">
+          <div class="form-card">
+            <div class="form-card-header" style="background:linear-gradient(135deg,var(--gray-700),var(--gray-900))">
+              <h2>Ubah Password Admin</h2>
+              <p>Ganti password untuk keamanan panel admin</p>
+            </div>
+            <div class="form-body">
+              <div class="form-group">
+                <label>Password Saat Ini</label>
+                <input type="password" id="pwCurrent" placeholder="Masukkan password saat ini">
+              </div>
+              <div class="form-group">
+                <label>Password Baru</label>
+                <input type="password" id="pwNew" placeholder="Password baru (min. 6 karakter)">
+              </div>
+              <div class="form-group">
+                <label>Konfirmasi Password Baru</label>
+                <input type="password" id="pwConfirm" placeholder="Ulangi password baru">
+              </div>
+              <div id="pwMsg" style="font-size:13px;padding:10px;border-radius:8px;display:none;margin-bottom:14px"></div>
+              <button class="btn btn-primary btn-full" onclick="changePassword()">🔐 Ubah Password</button>
+              <div style="margin-top:16px;padding:12px;background:var(--gray-50);border-radius:8px;font-size:12px;color:var(--gray-600)">
+                Segera ubah password secara berkala untuk keamanan sistem.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ========== PRINT AREA (hidden, shown on print) ========== -->
+<div id="printArea">
+  <div class="print-ticket">
+    <div class="print-header">
+      <h1>SIKESLING — Dinas Kesehatan</h1>
+      <p>Layanan Kesehatan Lingkungan Terpadu</p>
+    </div>
+    <div class="print-num" id="printNum">A001</div>
+    <div class="print-label">NOMOR ANTRIAN</div>
+    <div class="print-rows">
+      <div class="print-row"><span class="print-key">Nama</span><span class="print-val" id="printNama">—</span></div>
+      <div class="print-row"><span class="print-key">Layanan</span><span class="print-val" id="printLayanan">—</span></div>
+      <div class="print-row"><span class="print-key">Waktu Daftar</span><span class="print-val" id="printTime">—</span></div>
+      <div class="print-row"><span class="print-key">Estimasi Tunggu</span><span class="print-val" id="printEst">—</span></div>
+      <div id="printResponseRow" class="print-row" style="display:none"><span class="print-key">Info Petugas</span><span class="print-val" id="printResponse">—</span></div>
+    </div>
+    <div class="print-barcode" id="printBarcode">|||||||||||||||</div>
+    <div class="print-footer">Harap menunggu di ruang tunggu. Terima kasih.<br><span id="printDate">—</span></div>
+  </div>
+</div>
+
+<!-- ===== MODALS ===== -->
+<!-- Detail Pasien -->
+<div class="modal-overlay" id="modalDetail">
+  <div class="modal">
+    <div class="modal-header"><h3>Detail Pasien</h3><button class="modal-close" onclick="closeModal('modalDetail')">✕</button></div>
+    <div class="modal-body" id="modalDetailBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalDetail')">Tutup</button>
+      <button class="btn btn-sky btn-sm" id="modalDownloadBtn" onclick="">⬇️ Download Hasil</button>
+      <button class="btn btn-primary btn-sm" id="modalPrintBtn" onclick="">🖨 Cetak Tiket</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hapus Pasien -->
+<div class="modal-overlay" id="modalHapus">
+  <div class="modal">
+    <div class="modal-header"><h3>⚠️ Hapus Data Pasien</h3><button class="modal-close" onclick="closeModal('modalHapus')">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:14px;color:var(--gray-700)">Anda yakin ingin menghapus data pasien ini? Tindakan ini tidak dapat dibatalkan.</p>
+      <p style="font-size:13px;font-weight:700;margin-top:12px;color:var(--red)" id="hapusNamaTarget"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalHapus')">Batal</button>
+      <button class="btn btn-danger" id="hapusConfirmBtn">Hapus</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tambah/Edit Petugas -->
+<div class="modal-overlay" id="modalPetugas">
+  <div class="modal">
+    <div class="modal-header"><h3 id="petugasModalTitle">Tambah Petugas</h3><button class="modal-close" onclick="closeModal('modalPetugas')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Nama Petugas *</label><input type="text" id="petugasNama" placeholder="Nama lengkap"></div>
+      <div class="form-group"><label>Jabatan / Spesialisasi *</label><input type="text" id="petugasJabatan" placeholder="Misal: Sanitarian, Epidemiolog..."></div>
+      <div class="form-group"><label>No. HP</label><input type="tel" id="petugasHP" placeholder="08xx-xxxx-xxxx"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="petugasEmail" placeholder="email@contoh.com"></div>
+      <div class="form-group"><label>Status</label><select id="petugasStatus"><option>Aktif</option><option>Tidak Aktif</option></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalPetugas')">Batal</button>
+      <button class="btn btn-primary" onclick="savePetugas()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- TTD Modal -->
+<div class="modal-overlay" id="modalTTD">
+  <div class="modal">
+    <div class="modal-header"><h3>Tanda Tangan Pasien</h3><button class="modal-close" onclick="closeModal('modalTTD')">✕</button></div>
+    <div class="modal-body"><img id="modalTTDImg" src="" style="max-width:100%;border:1px solid var(--gray-200);border-radius:8px"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalTTD')">Tutup</button></div>
+  </div>
+</div>
+
+<!-- Tanggapan Peserta Modal -->
+<div class="modal-overlay" id="modalTanggapan">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><h3>💬 Tanggapan Petugas</h3><button class="modal-close" onclick="closeModal('modalTanggapan')">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:13px;font-weight:700;color:var(--gray-600);margin-bottom:8px" id="modalTanggapanLayanan"></div>
+      <div style="background:var(--teal-pale);border-radius:8px;padding:14px;font-size:14px;color:var(--teal-dark);line-height:1.7" id="modalTanggapanText"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modalTanggapan')">Tutup</button></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ============ STATE ============
+let queue = [];
+let patients = [];
+let petugas = [
+  {id:1,nama:'drg. Siti Rahayu',jabatan:'Sanitarian Ahli',hp:'081234567890',email:'siti@dinkeskesling.id',status:'Aktif'},
+  {id:2,nama:'Budi Santoso, SKM',jabatan:'Epidemiolog Kesehatan',hp:'082345678901',email:'budi@dinkeskesling.id',status:'Aktif'},
+  {id:3,nama:'Dewi Kusuma, S.Gz',jabatan:'Analis Pangan & Gizi',hp:'083456789012',email:'dewi@dinkeskesling.id',status:'Aktif'},
+];
+let currentServing = null;
+let queueCounter = 0;
+let editPetugasId = null;
+let hapusTargetId = null;
+let sigDrawing = false;
+let lastPos = {};
+let isAdminLoggedIn = false;
+let adminPassword = 'sikesling2024';
+let currentPrintId = null;
+
+// ============ JAM PELAYANAN ============
+let jamPelayanan = [
+  { hari: 'Senin – Jumat', jam: '07.30 – 14.00' },
+  { hari: 'Sabtu',         jam: '07.30 – 11.00' },
+];
+
+// ============ BIAYA LAYANAN ============
+let biayaLayanan = {
+  'Konsultasi Kesehatan Lingkungan': 0,
+  'Pemeriksaan Kualitas Air': 150000,
+  'Inspeksi Sanitasi Rumah': 75000,
+  'Pemeriksaan TTU (Tempat Umum)': 100000,
+  'Pengambilan Sampel Lingkungan': 200000,
+  'Konsultasi Vektor & Penyakit': 0,
+  'Pemeriksaan Makanan & Minuman': 125000,
+  'Perizinan Sanitasi': 250000,
+  'Laporan Masalah Lingkungan': 0,
+  'Lainnya': 0,
+};
+
+// ============ STATUS OPTIONS ============
+const statusOptions = ['menunggu','dipanggil','dalam pemeriksaan','selesai','dilewati','dibatalkan'];
+
+// ============ TANGGAPAN PETUGAS (default per layanan) ============
+let tanggapanPetugas = {
+  'Konsultasi Kesehatan Lingkungan': 'Selamat datang! Silakan membawa dokumen identitas (KTP/BPJS) dan riwayat kesehatan Anda. Konsultasi akan dilakukan oleh Sanitarian Ahli. Waktu konsultasi ±20-30 menit per pasien.',
+  'Pemeriksaan Kualitas Air': 'Untuk pemeriksaan kualitas air, harap membawa sampel air (min. 500ml) dalam wadah bersih dan tertutup. Sertakan keterangan sumber air (sumur/PDAM/mata air). Hasil pemeriksaan akan tersedia dalam 3-5 hari kerja.',
+  'Inspeksi Sanitasi Rumah': 'Petugas akan melakukan kunjungan ke lokasi. Pastikan penghuni rumah tersedia di rumah pada waktu yang telah dijadwalkan. Bawa denah/alamat lengkap rumah yang akan diinspeksi.',
+  'Pemeriksaan TTU (Tempat Umum)': 'Pemeriksaan TTU meliputi: restoran, kantin, hotel, kolam renang, dll. Pemilik/pengelola wajib hadir selama pemeriksaan. Siapkan dokumen perizinan usaha dan laporan sanitasi sebelumnya.',
+  'Pengambilan Sampel Lingkungan': 'Pengambilan sampel mencakup tanah, air, udara, dan limbah. Pastikan lokasi pengambilan sampel dapat diakses oleh petugas. Koordinasikan jadwal dengan petugas setelah nomor antrian dipanggil.',
+  'Konsultasi Vektor & Penyakit': 'Konsultasi terkait nyamuk, tikus, lalat, dan penyakit berbasis lingkungan. Bawa data kasus dan foto kondisi lingkungan jika tersedia. Siapkan informasi area/wilayah yang mengalami masalah.',
+  'Pemeriksaan Makanan & Minuman': 'Bawa sampel makanan/minuman yang akan diperiksa (min. 200gr/200ml). Sertakan kemasan asli dengan label jika ada. Pemeriksaan keamanan pangan membutuhkan waktu 5-7 hari kerja.',
+  'Perizinan Sanitasi': 'Siapkan dokumen: KTP, NPWP, denah bangunan, dan dokumen usaha. Proses perizinan sanitasi memerlukan inspeksi lapangan. Pastikan semua persyaratan administrasi lengkap sebelum datang.',
+  'Laporan Masalah Lingkungan': 'Siapkan dokumentasi foto/video masalah lingkungan yang dilaporkan. Cantumkan alamat lengkap lokasi masalah dan kronologi kejadian. Laporan akan ditindaklanjuti dalam 1x24 jam oleh tim investigasi.',
+  'Lainnya': 'Silakan sampaikan keperluan Anda kepada petugas loket. Kami siap membantu dan memberikan informasi layanan yang sesuai dengan kebutuhan Anda.',
+};
+
+// ============ WELCOME / GREETING ============
+let welcomeSoundPlayed = false;
+
+function startWelcomeWithSound(){
+  if(welcomeSoundPlayed) return;
+  welcomeSoundPlayed = true;
+
+  // Sembunyikan tombol, tampilkan info memutar
+  document.getElementById('welcomeTapArea').style.display = 'none';
+  document.getElementById('welcomePlayingInfo').style.display = 'block';
+
+  // Mulai progress bar dari awal
+  const bar = document.getElementById('welcomeProgressBar');
+  if(bar){ bar.style.animation='none'; bar.offsetHeight; bar.style.animation='loadProg 5s linear forwards'; }
+
+  // Putar sambutan
+  playWelcomeGreeting(function(){
+    // Setelah suara selesai, tutup overlay
+    setTimeout(hideWelcome, 600);
+  });
+
+  // Fallback: paksa tutup setelah 8 detik
+  setTimeout(hideWelcome, 8000);
+}
+
+function playWelcomeGreeting(onDone){
+  if(!window.speechSynthesis){ if(onDone) onDone(); return; }
+  window.speechSynthesis.cancel();
+
+  const texts = [
+    'Selamat datang di layanan SIKESLING!',
+    'Sistem Informasi Kesehatan Lingkungan, Dinas Kesehatan.',
+    'Silakan isi formulir pendaftaran untuk mendapatkan nomor antrian.',
+    'Terima kasih.'
+  ];
+
+  function getIdVoice(){
+    const voices = window.speechSynthesis.getVoices();
+    return voices.find(v=>v.lang==='id-ID')
+      || voices.find(v=>v.lang.startsWith('id'))
+      || voices.find(v=>v.lang.startsWith('ms'))
+      || null;
+  }
+
+  let idx = 0;
+  function speakNext(){
+    if(idx >= texts.length){ if(onDone) onDone(); return; }
+    const utter = new SpeechSynthesisUtterance(texts[idx++]);
+    utter.lang = 'id-ID';
+    utter.rate = 0.78;
+    utter.pitch = 1.0;
+    utter.volume = 1;
+    const v = getIdVoice();
+    if(v) utter.voice = v;
+    utter.onend = ()=> setTimeout(speakNext, 280);
+    utter.onerror = ()=> setTimeout(speakNext, 280);
+    window.speechSynthesis.speak(utter);
+  }
+
+  // Pastikan voices sudah tersedia
+  if(window.speechSynthesis.getVoices().length > 0){
+    speakNext();
+  } else {
+    window.speechSynthesis.addEventListener('voiceschanged', ()=>speakNext(), {once:true});
+    setTimeout(speakNext, 500); // fallback
+  }
+}
+
+function hideWelcome(){
+  const overlay = document.getElementById('welcomeOverlay');
+  overlay.classList.add('hide');
+  setTimeout(()=>{ overlay.style.display='none'; }, 900);
+}
+
+// ============ ADMIN LOGIN ============
+function requestAdminPage(e){
+  if(isAdminLoggedIn){
+    showPage('admin', e);
+  } else {
+    document.getElementById('adminLoginOverlay').classList.add('open');
+    document.getElementById('adminPasswordInput').value='';
+    document.getElementById('loginError').classList.remove('show');
+    setTimeout(()=>document.getElementById('adminPasswordInput').focus(), 100);
+  }
+}
+function doAdminLogin(){
+  const pw = document.getElementById('adminPasswordInput').value;
+  if(pw === adminPassword){
+    isAdminLoggedIn = true;
+    document.getElementById('adminLoginOverlay').classList.remove('open');
+    document.getElementById('btnLogout').classList.add('visible');
+    // manually trigger showPage without event
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('page-admin').classList.add('active');
+    document.getElementById('adminTabBtn').classList.add('active');
+    updateDisplays();
+    toast('✅ Login admin berhasil!','success');
+  } else {
+    document.getElementById('loginError').classList.add('show');
+    document.getElementById('adminPasswordInput').value='';
+    document.getElementById('adminPasswordInput').focus();
+  }
+}
+function closeAdminLogin(){
+  document.getElementById('adminLoginOverlay').classList.remove('open');
+}
+function logoutAdmin(){
+  isAdminLoggedIn = false;
+  document.getElementById('btnLogout').classList.remove('visible');
+  showPage('home', {target: document.querySelector('.nav-tab')});
+  // reset active tab
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector('.nav-tab').classList.add('active');
+  toast('👋 Berhasil keluar dari admin','info');
+}
+function changePassword(){
+  const cur = document.getElementById('pwCurrent').value;
+  const nw = document.getElementById('pwNew').value;
+  const conf = document.getElementById('pwConfirm').value;
+  const msg = document.getElementById('pwMsg');
+  if(cur !== adminPassword){
+    msg.style.display='block'; msg.style.background='var(--red-light)'; msg.style.color='var(--red)';
+    msg.textContent='❌ Password saat ini salah!'; return;
+  }
+  if(nw.length < 6){
+    msg.style.display='block'; msg.style.background='var(--red-light)'; msg.style.color='var(--red)';
+    msg.textContent='❌ Password baru minimal 6 karakter!'; return;
+  }
+  if(nw !== conf){
+    msg.style.display='block'; msg.style.background='var(--red-light)'; msg.style.color='var(--red)';
+    msg.textContent='❌ Konfirmasi password tidak cocok!'; return;
+  }
+  adminPassword = nw;
+  msg.style.display='block'; msg.style.background='var(--green-light)'; msg.style.color='var(--green)';
+  msg.textContent='✅ Password berhasil diubah!';
+  ['pwCurrent','pwNew','pwConfirm'].forEach(id=>document.getElementById(id).value='');
+  toast('🔐 Password admin telah diubah','success');
+}
+
+// ============ SIGNATURE PAD ============
+const canvas = document.getElementById('sigCanvas');
+const ctx = canvas.getContext('2d');
+ctx.strokeStyle = '#1a202c';
+ctx.lineWidth = 2.2;
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+
+canvas.addEventListener('mousedown', e => { sigDrawing=true; lastPos=getPos(e,canvas); });
+canvas.addEventListener('mousemove', e => { if(!sigDrawing) return; draw(getPos(e,canvas)); });
+canvas.addEventListener('mouseup', ()=>{ sigDrawing=false; checkSig(); });
+canvas.addEventListener('mouseleave', ()=>{ sigDrawing=false; });
+canvas.addEventListener('touchstart', e=>{ e.preventDefault(); sigDrawing=true; lastPos=getPos(e.touches[0],canvas); });
+canvas.addEventListener('touchmove', e=>{ e.preventDefault(); if(!sigDrawing) return; draw(getPos(e.touches[0],canvas)); });
+canvas.addEventListener('touchend', ()=>{ sigDrawing=false; checkSig(); });
+
+function getPos(e,el){
+  const r=el.getBoundingClientRect();
+  return {x:(e.clientX-r.left)*(el.width/r.width),y:(e.clientY-r.top)*(el.height/r.height)};
+}
+function draw(pos){
+  ctx.beginPath();
+  ctx.moveTo(lastPos.x,lastPos.y);
+  ctx.lineTo(pos.x,pos.y);
+  ctx.stroke();
+  lastPos=pos;
+}
+function clearSig(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  document.getElementById('sigStatus').textContent='Belum ditanda tangani';
+  document.getElementById('sigStatus').style.color='var(--gray-400)';
+}
+function checkSig(){
+  document.getElementById('sigStatus').textContent='✅ Sudah ditanda tangani';
+  document.getElementById('sigStatus').style.color='var(--green)';
+}
+function isSigEmpty(){
+  const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+  return !data.some(v=>v!==0);
+}
+
+// ============ FOTO PREVIEW ============
+function previewFoto(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=document.getElementById('fotoPreview');
+    img.src=e.target.result;
+    img.style.display='block';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ============ LAYANAN RESPONSE PREVIEW (saat daftar) ============
+function previewLayananResponse(){
+  const layanan = document.getElementById('regLayanan').value;
+  const preview = document.getElementById('layananResponsePreview');
+  const text = document.getElementById('layananResponseText');
+  if(layanan && tanggapanPetugas[layanan]){
+    text.textContent = tanggapanPetugas[layanan];
+    preview.classList.add('show');
+  } else {
+    preview.classList.remove('show');
+  }
+}
+
+// ============ REGISTRATION ============
+function submitRegistration(){
+  const nama=document.getElementById('regNama').value.trim();
+  const nik=document.getElementById('regNIK').value.trim();
+  const hp=document.getElementById('regHP').value.trim();
+  const email=document.getElementById('regEmail').value.trim();
+  const layanan=document.getElementById('regLayanan').value;
+
+  if(!nama||!nik||!hp||!email||!layanan){ toast('Lengkapi semua field wajib (*)', 'error'); return; }
+  if(!email.includes('@')){ toast('Format email tidak valid', 'error'); return; }
+  if(isSigEmpty()){ toast('Tanda tangan digital wajib diisi', 'error'); return; }
+
+  queueCounter++;
+  const numStr = 'A' + String(queueCounter).padStart(3,'0');
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+  const dateStr = now.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+
+  const fotoSrc = document.getElementById('fotoPreview').src || null;
+  const ttdSrc = canvas.toDataURL();
+  const responsePetugas = tanggapanPetugas[layanan] || '';
+
+  const entry = {
+    id: Date.now(),
+    num: numStr,
+    nama, nik, hp, email, layanan,
+    jk: document.getElementById('regJK').value,
+    ttl: document.getElementById('regTTL').value,
+    alamat: document.getElementById('regAlamat').value,
+    bpjs: document.getElementById('regBPJS').value,
+    keluhan: document.getElementById('regKeluhan').value,
+    foto: fotoSrc,
+    ttd: ttdSrc,
+    time: timeStr,
+    date: dateStr,
+    status: 'menunggu',
+    estimasi: queueCounter * 15 + ' menit',
+    responsePetugas: responsePetugas,
+    tanggapanAdmin: '',
+    rekomendasi: '',
+    petugasHandle: '',
+    biayaPenanganan: biayaLayanan[layanan]||0,
+    tglTindakLanjut: ''
+  };
+
+  queue.push(entry);
+  patients.push({...entry});
+
+  // Show ticket
+  document.getElementById('ticketCard').style.display='block';
+  document.getElementById('preTicket').style.display='none';
+  document.getElementById('ticketNum').textContent=numStr;
+  document.getElementById('ticketLayanan').textContent=layanan;
+  document.getElementById('ticketNama').textContent=nama;
+  document.getElementById('ticketSvc').textContent=layanan;
+  document.getElementById('ticketTime').textContent=timeStr+', '+dateStr;
+  document.getElementById('ticketEmail').textContent=email;
+  document.getElementById('ticketEst').textContent='±'+entry.estimasi;
+  const biayaVal = biayaLayanan[layanan]||0;
+  document.getElementById('ticketBiaya').textContent = biayaVal===0 ? 'Gratis' : 'Rp '+biayaVal.toLocaleString('id-ID');
+
+  // Tampilkan tanggapan petugas di tiket
+  if(responsePetugas){
+    document.getElementById('ticketResponseWrap').style.display='block';
+    document.getElementById('ticketResponseText').textContent=responsePetugas;
+  }
+
+  currentPrintId = entry.id;
+
+  // Voice announcement
+  speakRegistration(nama, numStr, layanan);
+
+  // Simulate email
+  simulateEmail(email, nama, numStr, layanan, timeStr, dateStr);
+
+  updateDisplays();
+  toast('✅ Pendaftaran berhasil! Nomor antrian: '+numStr, 'success');
+  clearForm();
+}
+
+function daftarLagi(){
+  document.getElementById('ticketCard').style.display='none';
+  document.getElementById('preTicket').style.display='block';
+  document.getElementById('layananResponsePreview').classList.remove('show');
+}
+
+function clearForm(){
+  ['regNama','regNIK','regHP','regEmail','regTTL','regBPJS','regAlamat','regKeluhan'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('regJK').value='';
+  document.getElementById('regLayanan').value='';
+  document.getElementById('fotoPreview').style.display='none';
+  document.getElementById('layananResponsePreview').classList.remove('show');
+  clearSig();
+}
+
+// ============ PRINT TICKET ============
+function printTicket(patientId){
+  let p;
+  if(patientId){
+    p = patients.find(x=>x.id===patientId);
+  } else if(currentPrintId){
+    p = patients.find(x=>x.id===currentPrintId);
+  }
+  if(!p) { toast('Data tiket tidak ditemukan','error'); return; }
+
+  document.getElementById('printNum').textContent = p.num;
+  document.getElementById('printNama').textContent = p.nama;
+  document.getElementById('printLayanan').textContent = p.layanan;
+  document.getElementById('printTime').textContent = p.time + ', ' + p.date;
+  document.getElementById('printEst').textContent = '±' + p.estimasi;
+  document.getElementById('printDate').textContent = 'Dicetak: ' + new Date().toLocaleString('id-ID');
+  // barcode-like
+  document.getElementById('printBarcode').textContent = p.num + ' — ' + p.id.toString().slice(-6);
+
+  if(p.responsePetugas){
+    document.getElementById('printResponseRow').style.display='flex';
+    document.getElementById('printResponse').textContent = p.responsePetugas.substring(0,80) + (p.responsePetugas.length>80?'...':'');
+  } else {
+    document.getElementById('printResponseRow').style.display='none';
+  }
+
+  document.getElementById('printArea').style.display = 'block';
+  window.print();
+  setTimeout(()=>{ document.getElementById('printArea').style.display='none'; }, 1000);
+}
+
+// ============ VOICE / TTS ============
+function speak(text, onDone){
+  if(!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  setTimeout(()=>{
+    const voices = window.speechSynthesis.getVoices();
+    const idVoice = voices.find(v=>v.lang==='id-ID')||voices.find(v=>v.lang.startsWith('id'))||voices.find(v=>v.lang.startsWith('ms'))||null;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang='id-ID';
+    utter.rate=0.80;
+    utter.pitch=0.95;
+    utter.volume=1;
+    if(idVoice) utter.voice=idVoice;
+    if(onDone) utter.onend=onDone;
+    window.speechSynthesis.speak(utter);
+  }, 100);
+}
+
+function speakRegistration(nama, num, layanan){
+  const parts = [
+    `Pendaftaran berhasil!`,
+    `Selamat datang, ${nama}. Nomor antrian Anda adalah ${num.replace('A','A-').split('').join(' ')}.`,
+    `Layanan: ${layanan}.`,
+    `Harap menunggu di ruang tunggu. Terima kasih.`
+  ];
+  let i = 0;
+  function next(){
+    if(i>=parts.length) return;
+    const txt = parts[i++];
+    const utter = new SpeechSynthesisUtterance(txt);
+    utter.lang='id-ID';
+    utter.rate=0.82;
+    utter.pitch=0.95;
+    utter.volume=1;
+    const voices = window.speechSynthesis.getVoices();
+    const idVoice = voices.find(v=>v.lang==='id-ID')||voices.find(v=>v.lang.startsWith('id'))||null;
+    if(idVoice) utter.voice=idVoice;
+    utter.onend=()=>setTimeout(next,200);
+    window.speechSynthesis.speak(utter);
+  }
+  setTimeout(next, 400);
+}
+
+function speakCallQueue(nama, num, layanan){
+  const parts = [
+    `Perhatian! Perhatian!`,
+    `Nomor antrian ${num.replace('A','A-').split('').join(' ')},`,
+    `Atas nama ${nama},`,
+    `Mohon segera menuju loket layanan ${layanan}.`,
+    `Nomor antrian ${num.replace('A','A-').split('').join(' ')}, ${nama}, silakan maju ke loket.`
+  ];
+  let i=0;
+  function next(){
+    if(i>=parts.length) return;
+    const txt=parts[i++];
+    const utter=new SpeechSynthesisUtterance(txt);
+    utter.lang='id-ID';
+    utter.rate=0.78;
+    utter.pitch=0.9;
+    utter.volume=1;
+    const voices=window.speechSynthesis.getVoices();
+    const idVoice=voices.find(v=>v.lang==='id-ID')||voices.find(v=>v.lang.startsWith('id'))||null;
+    if(idVoice) utter.voice=idVoice;
+    utter.onend=()=>setTimeout(next,250);
+    window.speechSynthesis.speak(utter);
+  }
+  window.speechSynthesis.cancel();
+  setTimeout(next,150);
+}
+
+// ============ IMPORT/UPLOAD DATA PASIEN OTOMATIS ============
+function importPasienData(input){
+  const file = input.files[0];
+  if(!file){ return; }
+  const statusEl = document.getElementById('uploadPasienStatus');
+  statusEl.style.display='block';
+  statusEl.style.background='var(--teal-pale)';
+  statusEl.style.color='var(--teal-dark)';
+  statusEl.textContent='⏳ Memproses file...';
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      let imported = [];
+      if(ext==='json'){
+        imported = JSON.parse(e.target.result);
+      } else if(ext==='csv'){
+        const lines = e.target.result.split('\n').filter(l=>l.trim());
+        const headers = lines[0].split(',').map(h=>h.replace(/"/g,'').trim().toLowerCase());
+        for(let i=1;i<lines.length;i++){
+          const vals = lines[i].match(/(".*?"|[^,]+)/g)||[];
+          const clean = vals.map(v=>v.replace(/"/g,'').trim());
+          // map CSV kolom ke field internal
+          const row = {};
+          headers.forEach((h,idx)=>{ row[h]=clean[idx]||''; });
+          const entry = {
+            id: Date.now()+i,
+            num: row['no']||row['nomor']||('I'+String(++queueCounter).padStart(3,'0')),
+            nama: row['nama']||row['name']||'—',
+            nik: row['nik']||row['ktp']||'',
+            hp: row['hp']||row['telepon']||row['phone']||'',
+            email: row['email']||'',
+            layanan: row['layanan']||row['service']||'Lainnya',
+            jk: row['jenis kelamin']||row['jk']||'',
+            ttl: row['tgl lahir']||row['tanggal lahir']||'',
+            alamat: row['alamat']||row['address']||'',
+            bpjs: row['bpjs']||'',
+            keluhan: row['keluhan']||'',
+            foto: null,
+            ttd: null,
+            time: row['waktu daftar']||row['time']||new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
+            date: row['tgl daftar']||row['date']||new Date().toLocaleDateString('id-ID'),
+            status: row['status']||'menunggu',
+            estimasi: '±15 menit',
+            responsePetugas: tanggapanPetugas[row['layanan']]||'',
+            tanggapanAdmin: row['tanggapan petugas']||''
+          };
+          imported.push(entry);
+        }
+      }
+      if(!imported.length){ throw new Error('Tidak ada data valid'); }
+      let added=0;
+      imported.forEach(p=>{
+        const exists = patients.find(x=>x.nik&&x.nik===p.nik&&x.nama===p.nama);
+        if(!exists){
+          if(!p.id) p.id=Date.now()+Math.random();
+          patients.push(p);
+          if(p.status!=='selesai') queue.push({...p});
+          added++;
+        }
+      });
+      updateDisplays();
+      statusEl.style.background='var(--green-light)';
+      statusEl.style.color='var(--green)';
+      statusEl.textContent=`✅ Berhasil mengimpor ${added} data pasien baru (${imported.length-added} duplikat dilewati)`;
+      toast(`📂 ${added} data pasien berhasil diimport!`,'success');
+      setTimeout(()=>{ statusEl.style.display='none'; },5000);
+    } catch(err){
+      statusEl.style.background='var(--red-light)';
+      statusEl.style.color='var(--red)';
+      statusEl.textContent='❌ Gagal membaca file: '+err.message+'. Pastikan format CSV/JSON sesuai.';
+    }
+    input.value='';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ============ TINDAK LANJUT PER PASIEN ============
+function renderTindakLanjutAdmin(){
+  const container = document.getElementById('tindakLanjutContainer');
+  const badge = document.getElementById('tindakBadge');
+  if(!container) return;
+  badge.textContent = patients.length + ' pasien';
+  if(!patients.length){
+    container.innerHTML='<p style="text-align:center;padding:24px;color:var(--gray-400);font-size:13px">Belum ada pasien terdaftar</p>';
+    return;
+  }
+  const petugasAktif = petugas.filter(p=>p.status==='Aktif');
+  container.innerHTML = patients.map(p=>{
+    const biaya = p.biayaPenanganan !== undefined ? p.biayaPenanganan : (biayaLayanan[p.layanan]||0);
+    const statusBadgeClass = {
+      'menunggu':'badge-amber','dipanggil':'badge-teal','dalam pemeriksaan':'badge-purple',
+      'selesai':'badge-green','dilewati':'badge-gray','dibatalkan':'badge-red'
+    }[p.status]||'badge-gray';
+    return `
+    <div style="background:var(--white);border-radius:10px;padding:16px;margin-bottom:12px;border:1px solid var(--gray-200);box-shadow:var(--shadow-sm)">
+      <!-- Header baris -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--gray-100)">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="queue-num" style="font-size:15px">${p.num}</span>
+          <strong>${p.nama}</strong>
+          <span class="tag">${p.layanan}</span>
+          <span class="badge ${statusBadgeClass}">${p.status}</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sky btn-sm" onclick="downloadPDF_TindakLanjut(${p.id})">📄 PDF</button>
+          <button class="btn btn-ghost btn-sm" onclick="speakTindakLanjut(${p.id})">🔊</button>
+        </div>
+      </div>
+
+      <!-- Grid 2 kolom -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+
+        <!-- Status Penanganan -->
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;display:block;margin-bottom:4px">📌 Status Penanganan</label>
+          <select id="statusPenanganan_${p.id}" onchange="updateStatusPasien(${p.id},this.value)"
+            style="width:100%;padding:8px 10px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit">
+            ${statusOptions.map(s=>`<option value="${s}" ${p.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+          </select>
+        </div>
+
+        <!-- Nama Petugas -->
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;display:block;margin-bottom:4px">👨‍⚕️ Petugas Penanganan</label>
+          <select id="petugasHandle_${p.id}"
+            style="width:100%;padding:8px 10px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit">
+            <option value="">— Pilih Petugas —</option>
+            ${petugasAktif.map(pt=>`<option value="${pt.nama}" ${p.petugasHandle===pt.nama?'selected':''}>${pt.nama} (${pt.jabatan})</option>`).join('')}
+          </select>
+        </div>
+
+        <!-- Biaya Penanganan -->
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;display:block;margin-bottom:4px">💰 Biaya Penanganan (Rp)</label>
+          <input type="number" id="biayaInput_${p.id}" value="${biaya}" min="0" step="1000"
+            style="width:100%;padding:8px 10px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit"
+            placeholder="0 = Gratis">
+        </div>
+
+        <!-- Tanggal Tindak Lanjut -->
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;display:block;margin-bottom:4px">📅 Tanggal Tindak Lanjut</label>
+          <input type="date" id="tglTindak_${p.id}" value="${p.tglTindakLanjut||''}"
+            style="width:100%;padding:8px 10px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit">
+        </div>
+      </div>
+
+      <!-- Catatan Tindak Lanjut -->
+      <div style="margin-bottom:10px">
+        <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;display:block;margin-bottom:4px">📝 Catatan / Hasil Pemeriksaan</label>
+        <textarea id="tindakTA_${p.id}" rows="3"
+          style="width:100%;padding:8px 10px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit;resize:vertical"
+          placeholder="Tuliskan hasil pemeriksaan, diagnosis, rekomendasi, atau tindak lanjut...">${p.tanggapanAdmin||''}</textarea>
+      </div>
+
+      <!-- Rekomendasi -->
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;display:block;margin-bottom:4px">✅ Rekomendasi / Tindakan Selanjutnya</label>
+        <textarea id="rekomendasiTA_${p.id}" rows="2"
+          style="width:100%;padding:8px 10px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit;resize:vertical"
+          placeholder="Misal: Kontrol ulang 1 minggu, rujuk ke puskesmas, ambil sampel ulang...">${p.rekomendasi||''}</textarea>
+      </div>
+
+      <button class="btn btn-primary btn-sm" onclick="saveTindakLanjutPasien(${p.id})">💾 Simpan Semua</button>
+    </div>`;
+  }).join('');
+}
+
+function saveTindakLanjutPasien(id){
+  const val = (document.getElementById('tindakTA_'+id)||{}).value||'';
+  const rekomendasi = (document.getElementById('rekomendasiTA_'+id)||{}).value||'';
+  const petugasHandle = (document.getElementById('petugasHandle_'+id)||{}).value||'';
+  const biaya = parseInt((document.getElementById('biayaInput_'+id)||{}).value||'0')||0;
+  const tgl = (document.getElementById('tglTindak_'+id)||{}).value||'';
+  const statusEl = document.getElementById('statusPenanganan_'+id);
+  const statusVal = statusEl ? statusEl.value : null;
+
+  const qi=queue.findIndex(q=>q.id===id);
+  const pi=patients.findIndex(p=>p.id===id);
+  const update = { tanggapanAdmin:val, rekomendasi, petugasHandle, biayaPenanganan:biaya, tglTindakLanjut:tgl };
+  if(statusVal){ update.status = statusVal; }
+  if(qi>-1) Object.assign(queue[qi], update);
+  if(pi>-1) Object.assign(patients[pi], update);
+  updateDisplays();
+  toast('💾 Tindak lanjut pasien disimpan!','success');
+}
+
+function updateStatusPasien(id, statusVal){
+  const qi=queue.findIndex(q=>q.id===id);
+  const pi=patients.findIndex(p=>p.id===id);
+  if(qi>-1) queue[qi].status=statusVal;
+  if(pi>-1) patients[pi].status=statusVal;
+  updateDisplays();
+}
+
+function speakTindakLanjut(id){
+  const p=patients.find(x=>x.id===id);
+  if(!p) return;
+  const ta = document.getElementById('tindakTA_'+id);
+  const text = ta&&ta.value.trim() ? ta.value.trim() : (p.tanggapanAdmin||'Belum ada catatan tindak lanjut');
+  speak(`Tindak lanjut untuk pasien ${p.nama}, nomor ${p.num}: ${text}`);
+}
+
+function downloadPDF_TindakLanjut(id){
+  const p = patients.find(x=>x.id===id);
+  if(!p){ toast('Data pasien tidak ditemukan','error'); return; }
+
+  // Ambil nilai terkini dari form jika sedang terbuka
+  const taEl   = document.getElementById('tindakTA_'+id);
+  const rekEl  = document.getElementById('rekomendasiTA_'+id);
+  const ptEl   = document.getElementById('petugasHandle_'+id);
+  const biEl   = document.getElementById('biayaInput_'+id);
+  const tglEl  = document.getElementById('tglTindak_'+id);
+
+  const catatan      = taEl  ? taEl.value.trim()  : (p.tanggapanAdmin||'—');
+  const rekomendasi  = rekEl ? rekEl.value.trim()  : (p.rekomendasi||'—');
+  const petugasNama  = ptEl  ? ptEl.value          : (p.petugasHandle||'—');
+  const biaya        = biEl  ? parseInt(biEl.value)||0 : (p.biayaPenanganan||0);
+  const tglTindak    = tglEl ? tglEl.value         : (p.tglTindakLanjut||'—');
+  const now          = new Date().toLocaleString('id-ID');
+  const biayaFmt     = biaya === 0 ? 'Gratis / Rp 0' : 'Rp ' + biaya.toLocaleString('id-ID');
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const W = 210, M = 18;
+  let y = 0;
+
+  // ── Header ──
+  doc.setFillColor(5,77,67);
+  doc.rect(0,0,W,38,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(16);
+  doc.text('SIKESLING — Dinas Kesehatan', W/2, 14, {align:'center'});
+  doc.setFontSize(10);
+  doc.setFont('helvetica','normal');
+  doc.text('Layanan Kesehatan Lingkungan Terpadu', W/2, 21, {align:'center'});
+  doc.setFontSize(12);
+  doc.setFont('helvetica','bold');
+  doc.text('HASIL TINDAK LANJUT PEMERIKSAAN', W/2, 31, {align:'center'});
+
+  y = 46;
+  doc.setTextColor(30,30,30);
+
+  // ── helper functions ──
+  function sectionTitle(title){
+    doc.setFillColor(230,247,245);
+    doc.rect(M, y, W-M*2, 8, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10);
+    doc.setTextColor(5,77,67);
+    doc.text(title, M+3, y+5.5);
+    doc.setTextColor(30,30,30);
+    y += 11;
+  }
+  function row(label, value, wide){
+    const colW = wide ? W-M*2-4 : (W-M*2)/2-4;
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(100,100,100);
+    doc.text(label, M+2, y);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(10);
+    doc.setTextColor(30,30,30);
+    const lines = doc.splitTextToSize(String(value||'—'), wide ? W-M*2-4 : colW);
+    doc.text(lines, M+2, y+5);
+    y += 5 + lines.length*5 + 3;
+  }
+  function twoRow(l1,v1,l2,v2){
+    const half = (W-M*2-6)/2;
+    const xR = M + half + 6;
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(100,100,100);
+    doc.text(l1, M+2, y);
+    doc.text(l2, xR, y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(30,30,30);
+    doc.text(String(v1||'—'), M+2, y+5);
+    doc.text(String(v2||'—'), xR, y+5);
+    y += 14;
+  }
+  function divider(){ doc.setDrawColor(220,220,220); doc.line(M,y,W-M,y); y+=5; }
+
+  // ── IDENTITAS PASIEN ──
+  sectionTitle('IDENTITAS PASIEN');
+  twoRow('Nomor Antrian', p.num, 'Waktu Daftar', p.time+', '+p.date);
+  twoRow('Nama Lengkap', p.nama, 'NIK', p.nik||'—');
+  twoRow('Jenis Kelamin', p.jk||'—', 'Tanggal Lahir', p.ttl||'—');
+  twoRow('No. HP', p.hp, 'Email', p.email);
+  row('Alamat', p.alamat||'—', true);
+  twoRow('No. BPJS', p.bpjs||'—', 'Layanan / Tujuan', p.layanan);
+  divider();
+
+  // ── DETAIL KUNJUNGAN ──
+  sectionTitle('DETAIL KUNJUNGAN');
+  twoRow('Keluhan / Keperluan', p.keluhan||'—', 'Status Penanganan', p.status.toUpperCase());
+  twoRow('Petugas Penanganan', petugasNama, 'Tanggal Tindak Lanjut', tglTindak||'—');
+  divider();
+
+  // ── RINCIAN BIAYA ──
+  sectionTitle('RINCIAN BIAYA PENANGANAN');
+  doc.setFillColor(254,243,199);
+  doc.rect(M, y, W-M*2, 12, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(5,77,67);
+  doc.text('Total Biaya:', M+4, y+8);
+  doc.setFontSize(13);
+  doc.text(biayaFmt, W-M-4, y+8, {align:'right'});
+  doc.setTextColor(30,30,30);
+  y += 16;
+  divider();
+
+  // ── CATATAN TINDAK LANJUT ──
+  sectionTitle('CATATAN / HASIL PEMERIKSAAN');
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  const catatanLines = doc.splitTextToSize(catatan||'—', W-M*2-4);
+  doc.text(catatanLines, M+2, y);
+  y += catatanLines.length * 5.5 + 6;
+  divider();
+
+  // ── REKOMENDASI ──
+  sectionTitle('REKOMENDASI / TINDAKAN SELANJUTNYA');
+  const rekLines = doc.splitTextToSize(rekomendasi||'—', W-M*2-4);
+  doc.text(rekLines, M+2, y);
+  y += rekLines.length * 5.5 + 6;
+  divider();
+
+  // ── INFO PETUGAS ──
+  if(p.responsePetugas){
+    sectionTitle('INFORMASI UMUM LAYANAN');
+    const rpLines = doc.splitTextToSize(p.responsePetugas, W-M*2-4);
+    doc.text(rpLines, M+2, y);
+    y += rpLines.length * 5.5 + 6;
+    divider();
+  }
+
+  // ── TTD Area ──
+  y += 4;
+  const xSign = W - M - 52;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
+  doc.text('Mengetahui,', M+4, y+5);
+  doc.text('Petugas,', xSign, y+5);
+  y += 28;
+  doc.line(M+2, y, M+48, y);
+  doc.line(xSign, y, xSign+48, y);
+  doc.setFontSize(8.5);
+  doc.text('Kepala Seksi / Penyelia', M+2, y+5);
+  doc.text(petugasNama!=='—' ? petugasNama : 'Nama Petugas', xSign, y+5);
+
+  // ── Footer ──
+  y += 14;
+  doc.setFillColor(245,248,250);
+  doc.rect(0, y, W, 14, 'F');
+  doc.setFontSize(8); doc.setTextColor(120,120,120);
+  doc.text('Dicetak: ' + now + '  |  Dokumen resmi SIKESLING — Dinas Kesehatan', W/2, y+5, {align:'center'});
+  doc.text('Harap simpan dokumen ini sebagai bukti layanan kesehatan lingkungan.', W/2, y+10, {align:'center'});
+
+  doc.save(`TindakLanjut_${p.num}_${p.nama.replace(/\s+/g,'_')}.pdf`);
+  toast(`📄 PDF tindak lanjut ${p.nama} berhasil didownload!`, 'success');
+}
+
+// Alias lama (untuk tombol di tabel pasien)
+function downloadTindakLanjutPasien(id){ downloadPDF_TindakLanjut(id); }
+
+function downloadTindakLanjut(){
+  if(!patients.length){ toast('Belum ada data pasien','error'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const W=210, M=14;
+  const now = new Date().toLocaleString('id-ID');
+  const nowDate = new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  doc.setFillColor(5,77,67);
+  doc.rect(0,0,W,36,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.text('LAPORAN HASIL TINDAK LANJUT PEMERIKSAAN', W/2, 13, {align:'center'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('Sistem Informasi Kesehatan Lingkungan (SIKESLING) — Dinas Kesehatan', W/2, 20, {align:'center'});
+  doc.text(nowDate + '  |  Total Pasien: ' + patients.length, W/2, 28, {align:'center'});
+
+  let y = 44;
+  doc.setTextColor(30,30,30);
+
+  patients.forEach((p,i)=>{
+    if(y > 255){ doc.addPage(); y=16; }
+    const biaya = p.biayaPenanganan||0;
+    const biayaFmt = biaya===0 ? 'Gratis' : 'Rp '+biaya.toLocaleString('id-ID');
+    doc.setFillColor(230,247,245);
+    doc.rect(M,y,W-M*2,8,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(5,77,67);
+    doc.text(`[${i+1}]  ${p.num}  —  ${p.nama}`, M+3, y+5.5);
+    doc.setTextColor(80,80,80); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text(p.layanan, W-M-3, y+5.5, {align:'right'});
+    doc.setTextColor(30,30,30);
+    y += 11;
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    const half=(W-M*2)/2;
+    const pairs=[['Status',p.status.toUpperCase()],['Petugas',p.petugasHandle||'—'],['Biaya',biayaFmt],['Tgl Tindak Lanjut',p.tglTindakLanjut||'—']];
+    pairs.forEach(([k,v],ci)=>{
+      const xC = M + (ci%2)*half;
+      if(ci===2) y+=9;
+      doc.setTextColor(120,120,120); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+      doc.text(k+':', xC+2, y);
+      doc.setTextColor(30,30,30); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+      doc.text(String(v), xC+2, y+4.5);
+    });
+    y += 11;
+    if(p.tanggapanAdmin){
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(120,120,120);
+      doc.text('Catatan:', M+2, y);
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(30,30,30);
+      const lines=doc.splitTextToSize(p.tanggapanAdmin,W-M*2-4);
+      doc.text(lines,M+2,y+4.5); y+=4.5+lines.length*4.8+2;
+    }
+    if(p.rekomendasi){
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(120,120,120);
+      doc.text('Rekomendasi:', M+2, y);
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(30,30,30);
+      const rlines=doc.splitTextToSize(p.rekomendasi,W-M*2-4);
+      doc.text(rlines,M+2,y+4.5); y+=4.5+rlines.length*4.8+2;
+    }
+    doc.setDrawColor(210,210,210); doc.line(M,y,W-M,y); y+=6;
+  });
+
+  doc.setFillColor(245,248,250); doc.rect(0,y+2,W,12,'F');
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(120,120,120);
+  doc.text('Dicetak: '+now+' | SIKESLING — Dinas Kesehatan', W/2, y+8, {align:'center'});
+  doc.save(`Laporan_TindakLanjut_${new Date().toISOString().slice(0,10)}.pdf`);
+  toast('📄 Laporan PDF berhasil didownload!','success');
+}
+
+// ============ EMAIL SIMULATION ============
+function simulateEmail(email, nama, num, layanan, time, date){
+  console.log(`[EMAIL SENT to ${email}]\nKepada: ${nama}\nNo. Antrian: ${num}\nLayanan: ${layanan}\nWaktu: ${time}, ${date}`);
+  toast(`📧 Email konfirmasi dikirim ke ${email}`, 'info');
+}
+
+// ============ CALL NEXT ============
+function callNext(){
+  const waiting = queue.filter(q=>q.status==='menunggu');
+  if(waiting.length===0){ toast('Tidak ada antrian yang menunggu', 'error'); return; }
+  if(currentServing) {
+    const idx = queue.findIndex(q=>q.id===currentServing.id);
+    if(idx>-1) queue[idx].status='selesai';
+  }
+  currentServing = waiting[0];
+  const idx = queue.findIndex(q=>q.id===currentServing.id);
+  if(idx>-1) queue[idx].status='dipanggil';
+  speakCallQueue(currentServing.nama, currentServing.num, currentServing.layanan);
+  updateDisplays();
+  toast(`🔊 Memanggil: ${currentServing.num} — ${currentServing.nama}`, 'success');
+}
+
+function callAgain(){
+  if(!currentServing){ toast('Belum ada antrian yang dipanggil', 'error'); return; }
+  speakCallQueue(currentServing.nama, currentServing.num, currentServing.layanan);
+  toast(`🔁 Mengulang panggilan: ${currentServing.num} — ${currentServing.nama}`, 'info');
+}
+
+// ============ ADMIN ACTIONS ============
+function callSpecific(id){
+  const item = queue.find(q=>q.id===id);
+  if(!item) return;
+  if(currentServing){ const idx=queue.findIndex(q=>q.id===currentServing.id); if(idx>-1) queue[idx].status='selesai'; }
+  currentServing = item;
+  const idx = queue.findIndex(q=>q.id===id);
+  if(idx>-1) queue[idx].status='dipanggil';
+  speakCallQueue(item.nama, item.num, item.layanan);
+  updateDisplays();
+  toast(`🔊 Memanggil: ${item.num} — ${item.nama}`,'success');
+}
+
+function markDone(id){
+  const idx = queue.findIndex(q=>q.id===id);
+  if(idx>-1){ queue[idx].status='selesai'; if(currentServing&&currentServing.id===id) currentServing=null; }
+  // sync to patients
+  const pi = patients.findIndex(p=>p.id===id);
+  if(pi>-1) patients[pi].status='selesai';
+  updateDisplays();
+  toast('✅ Status diubah: Selesai','success');
+}
+
+function markSkip(id){
+  const idx = queue.findIndex(q=>q.id===id);
+  if(idx>-1) queue[idx].status='dilewati';
+  const pi = patients.findIndex(p=>p.id===id);
+  if(pi>-1) patients[pi].status='dilewati';
+  updateDisplays();
+  toast('⏭ Antrian dilewati','info');
+}
+
+// ============ TANGGAPAN ADMIN (per pasien) ============
+function saveTanggapanPasien(id){
+  const val = document.getElementById('tanggapanInput_'+id).value.trim();
+  const qi = queue.findIndex(q=>q.id===id);
+  const pi = patients.findIndex(p=>p.id===id);
+  if(qi>-1) queue[qi].tanggapanAdmin = val;
+  if(pi>-1) patients[pi].tanggapanAdmin = val;
+  updateDisplays();
+  toast('💬 Tanggapan petugas disimpan & disinkron ke peserta','success');
+}
+
+function viewTanggapanModal(layanan, text){
+  document.getElementById('modalTanggapanLayanan').textContent = '📋 Layanan: ' + layanan;
+  document.getElementById('modalTanggapanText').textContent = text || '(Belum ada tanggapan)';
+  openModal('modalTanggapan');
+}
+
+// ============ TANGGAPAN LAYANAN ADMIN ============
+function renderTanggapanAdmin(){
+  const container = document.getElementById('tanggapanContainer');
+  const layananList = [
+    'Konsultasi Kesehatan Lingkungan','Pemeriksaan Kualitas Air','Inspeksi Sanitasi Rumah',
+    'Pemeriksaan TTU (Tempat Umum)','Pengambilan Sampel Lingkungan','Konsultasi Vektor & Penyakit',
+    'Pemeriksaan Makanan & Minuman','Perizinan Sanitasi','Laporan Masalah Lingkungan','Lainnya'
+  ];
+  container.innerHTML = layananList.map(l=>`
+    <div class="response-item">
+      <h4>🏥 ${l}</h4>
+      <textarea id="respTA_${btoa(encodeURIComponent(l)).replace(/=/g,'')}" rows="3">${tanggapanPetugas[l]||''}</textarea>
+      <button class="btn btn-primary btn-sm response-save-btn" onclick="saveTanggapanLayanan('${l}','respTA_${btoa(encodeURIComponent(l)).replace(/=/g,'')}')">💾 Simpan &amp; Sinkron ke Peserta</button>
+    </div>
+  `).join('');
+}
+
+function saveTanggapanLayanan(layanan, taId){
+  const val = document.getElementById(taId).value.trim();
+  tanggapanPetugas[layanan] = val;
+  // Update all existing queue entries with this layanan
+  queue.forEach((q,i)=>{ if(q.layanan===layanan){ queue[i].responsePetugas=val; } });
+  patients.forEach((p,i)=>{ if(p.layanan===layanan){ patients[i].responsePetugas=val; } });
+  updateDisplays();
+  toast(`✅ Tanggapan "${layanan}" disimpan & disinkron ke semua peserta!`, 'success');
+}
+
+// ============ HAPUS ============
+function confirmHapus(id){
+  hapusTargetId=id;
+  const p=patients.find(x=>x.id===id);
+  document.getElementById('hapusNamaTarget').textContent = p ? `Nama: ${p.nama} | No: ${p.num}` : '';
+  document.getElementById('hapusConfirmBtn').onclick=()=>doHapus();
+  openModal('modalHapus');
+}
+
+function doHapus(){
+  patients = patients.filter(p=>p.id!==hapusTargetId);
+  queue = queue.filter(q=>q.id!==hapusTargetId);
+  closeModal('modalHapus');
+  updateDisplays();
+  toast('🗑 Data pasien dihapus','error');
+}
+
+function deleteAllConfirm(){
+  if(confirm('Hapus SEMUA data pasien hari ini? Tindakan ini tidak dapat dibatalkan!')){
+    patients=[];queue=[];currentServing=null;
+    updateDisplays();
+    toast('🗑 Semua data dihapus','error');
+  }
+}
+
+function viewDetail(id){
+  const p=patients.find(x=>x.id===id);
+  if(!p) return;
+  let html=`<div style="display:grid;gap:10px">`;
+  if(p.foto) html+=`<div style="text-align:center"><img src="${p.foto}" style="max-height:100px;border-radius:8px;border:1px solid var(--gray-200)"></div>`;
+  const rows=[['No. Antrian',p.num],['Nama',p.nama],['NIK',p.nik||'—'],['Tgl Lahir',p.ttl||'—'],['Jenis Kelamin',p.jk||'—'],['No. HP',p.hp],['Email',p.email],['Alamat',p.alamat||'—'],['BPJS',p.bpjs||'—'],['Layanan',p.layanan],['Keluhan',p.keluhan||'—'],['Waktu Daftar',p.time+', '+p.date],['Status',p.status]];
+  rows.forEach(([k,v])=>{html+=`<div class="ticket-row"><span class="ticket-key">${k}</span><span class="ticket-val">${v}</span></div>`;});
+  if(p.responsePetugas) html+=`<div style="background:var(--teal-pale);border-radius:8px;padding:10px;font-size:12px;color:var(--teal-dark)"><strong>💬 Tanggapan Petugas:</strong><br>${p.responsePetugas}</div>`;
+  if(p.tanggapanAdmin) html+=`<div style="background:var(--purple-light);border-radius:8px;padding:10px;font-size:12px;color:var(--purple)"><strong>📝 Catatan Admin:</strong><br>${p.tanggapanAdmin}</div>`;
+  if(p.ttd) html+=`<div style="margin-top:8px"><div style="font-size:12px;font-weight:700;color:var(--gray-500);margin-bottom:4px">TANDA TANGAN</div><img src="${p.ttd}" style="max-width:100%;border:1px solid var(--gray-200);border-radius:6px"></div>`;
+  html+='</div>';
+  document.getElementById('modalDetailBody').innerHTML=html;
+  document.getElementById('modalPrintBtn').onclick=()=>printTicket(p.id);
+  document.getElementById('modalDownloadBtn').onclick=()=>downloadTindakLanjutPasien(p.id);
+  openModal('modalDetail');
+}
+
+function viewTTD(id){
+  const p=patients.find(x=>x.id===id);
+  if(!p||!p.ttd) return;
+  document.getElementById('modalTTDImg').src=p.ttd;
+  openModal('modalTTD');
+}
+
+function exportData(){
+  const rows=[['No','Nama','NIK','Layanan','Email','HP','Status','Waktu Daftar','Tanggapan Petugas']];
+  patients.forEach((p,i)=>rows.push([i+1,p.nama,p.nik||'',p.layanan,p.email,p.hp,p.status,p.time+', '+p.date,p.responsePetugas||'']));
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='data_pasien_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  toast('📤 Data diekspor ke CSV','success');
+}
+
+// ============ PETUGAS ============
+function openAddPetugas(){ editPetugasId=null; document.getElementById('petugasModalTitle').textContent='Tambah Petugas'; ['petugasNama','petugasJabatan','petugasHP','petugasEmail'].forEach(id=>document.getElementById(id).value=''); document.getElementById('petugasStatus').value='Aktif'; openModal('modalPetugas'); }
+function openEditPetugas(id){
+  editPetugasId=id;
+  const p=petugas.find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById('petugasModalTitle').textContent='Edit Petugas';
+  document.getElementById('petugasNama').value=p.nama;
+  document.getElementById('petugasJabatan').value=p.jabatan;
+  document.getElementById('petugasHP').value=p.hp||'';
+  document.getElementById('petugasEmail').value=p.email||'';
+  document.getElementById('petugasStatus').value=p.status;
+  openModal('modalPetugas');
+}
+function savePetugas(){
+  const nama=document.getElementById('petugasNama').value.trim();
+  const jabatan=document.getElementById('petugasJabatan').value.trim();
+  if(!nama||!jabatan){ toast('Nama dan jabatan wajib diisi','error'); return; }
+  const data={id:editPetugasId||Date.now(),nama,jabatan,hp:document.getElementById('petugasHP').value,email:document.getElementById('petugasEmail').value,status:document.getElementById('petugasStatus').value};
+  if(editPetugasId){ const idx=petugas.findIndex(p=>p.id===editPetugasId); if(idx>-1) petugas[idx]=data; }
+  else { petugas.push(data); }
+  closeModal('modalPetugas');
+  renderPetugasGrid();
+  toast(editPetugasId?'✏️ Data petugas diperbarui':'✅ Petugas ditambahkan','success');
+}
+function deletePetugas(id){
+  if(!confirm('Hapus data petugas ini?')) return;
+  petugas=petugas.filter(p=>p.id!==id);
+  renderPetugasGrid();
+  toast('🗑 Data petugas dihapus','error');
+}
+function renderPetugasGrid(){
+  const grid=document.getElementById('petugasGrid');
+  if(!petugas.length){ grid.innerHTML='<div style="color:var(--gray-400);font-size:13px;padding:16px">Belum ada petugas</div>'; return; }
+  grid.innerHTML=petugas.map(p=>`
+    <div class="petugas-card">
+      <button class="btn btn-ghost btn-sm edit-btn" onclick="openEditPetugas(${p.id})" style="padding:4px 8px;font-size:11px">✏️</button>
+      <div class="avatar">${p.nama.charAt(0)}</div>
+      <h4>${p.nama}</h4>
+      <p>${p.jabatan}</p>
+      <p style="margin-top:2px">${p.hp||''}</p>
+      <div style="margin-top:6px"><span class="badge ${p.status==='Aktif'?'badge-green':'badge-gray'}">${p.status}</span></div>
+      <div class="card-actions">
+        <button class="btn btn-danger btn-sm" onclick="deletePetugas(${p.id})">🗑 Hapus</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ============ SEARCH PASIEN ============
+function renderPasienTable(){
+  const q=document.getElementById('searchPasien').value.toLowerCase();
+  const f=document.getElementById('filterLayanan').value;
+  let data=patients.filter(p=>{
+    const match=!q||(p.nama.toLowerCase().includes(q)||p.nik?.includes(q)||p.email.toLowerCase().includes(q));
+    const fmatch=!f||p.layanan===f;
+    return match&&fmatch;
+  });
+  const tbody=document.getElementById('pasienTbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--gray-400)">Tidak ada data</td></tr>'; return; }
+  tbody.innerHTML=data.map((p,i)=>`
+    <tr>
+      <td><span class="queue-num">${p.num}</span></td>
+      <td>${p.foto?`<img src="${p.foto}" class="photo-thumb">`:'<span style="font-size:20px">👤</span>'}</td>
+      <td><strong>${p.nama}</strong></td>
+      <td><small>${p.nik||'—'}</small></td>
+      <td><span class="tag">${p.layanan}</span></td>
+      <td><small>${p.email}</small></td>
+      <td><small>${p.time}</small></td>
+      <td>${p.ttd?`<button class="btn btn-ghost btn-sm" onclick="viewTTD(${p.id})">✍️</button>`:'—'}</td>
+      <td>
+        ${p.responsePetugas?`<button class="btn btn-sky btn-sm" onclick="viewTanggapanModal('${p.layanan.replace(/'/g,"\\'")}','${p.responsePetugas.replace(/'/g,"\\'").substring(0,100)}...')">💬 Lihat</button>`:'<span style="color:var(--gray-400);font-size:12px">—</span>'}
+      </td>
+      <td>
+        <button class="btn btn-sky btn-sm" onclick="viewDetail(${p.id})">👁</button>
+        <button class="btn btn-primary btn-sm" onclick="printTicket(${p.id})">🖨</button>
+        <button class="btn btn-ghost btn-sm" onclick="downloadTindakLanjutPasien(${p.id})" title="Download Hasil Tindak Lanjut">⬇️</button>
+        <button class="btn btn-danger btn-sm" onclick="confirmHapus(${p.id})">🗑</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ============ LAPORAN ============
+function renderLaporan(){
+  const counts={};
+  patients.forEach(p=>{ counts[p.layanan]=(counts[p.layanan]||0)+1; });
+  const layananEl=document.getElementById('laporanLayanan');
+  layananEl.innerHTML=Object.entries(counts).map(([k,v])=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--gray-200)">
+      <span style="font-size:12px;color:var(--gray-700)">${k}</span>
+      <span style="font-size:13px;font-weight:700;color:var(--teal)">${v}</span>
+    </div>
+  `).join('')||'<p style="font-size:13px;color:var(--gray-400)">Belum ada data</p>';
+
+  const selesai=patients.filter(p=>p.status==='selesai').length;
+  const menunggu=patients.filter(p=>p.status==='menunggu').length;
+  const dilewati=patients.filter(p=>p.status==='dilewati').length;
+  document.getElementById('laporanRingkasan').innerHTML=`
+    <div class="ticket-row"><span class="ticket-key">Total Pasien</span><span style="font-weight:700">${patients.length}</span></div>
+    <div class="ticket-row"><span class="ticket-key">Selesai</span><span style="font-weight:700;color:var(--green)">${selesai}</span></div>
+    <div class="ticket-row"><span class="ticket-key">Menunggu</span><span style="font-weight:700;color:var(--accent)">${menunggu}</span></div>
+    <div class="ticket-row"><span class="ticket-key">Dilewati</span><span style="font-weight:700;color:var(--red)">${dilewati}</span></div>
+  `;
+}
+
+// ============ UPDATE ALL DISPLAYS ============
+function updateDisplays(){
+  const waiting=queue.filter(q=>q.status==='menunggu');
+  const done=queue.filter(q=>q.status==='selesai');
+  const skipped=queue.filter(q=>q.status==='dilewati');
+  const called=queue.filter(q=>q.status==='dipanggil');
+
+  document.getElementById('statTotal').textContent=queue.length;
+  document.getElementById('statWaiting').textContent=waiting.length;
+  document.getElementById('statDone').textContent=done.length;
+  document.getElementById('statSkip').textContent=skipped.length;
+  document.getElementById('adStatTotal').textContent=queue.length;
+  document.getElementById('adStatWait').textContent=waiting.length;
+  document.getElementById('adStatDone').textContent=done.length;
+  document.getElementById('listCount').textContent=queue.length+' antrian';
+  document.getElementById('adActiveBadge').textContent=waiting.length+' menunggu';
+  document.getElementById('navBadge').textContent=waiting.length;
+
+  // Now serving
+  const cur=currentServing||called[0]||null;
+  const nxt=waiting[0]||null;
+  if(cur){
+    document.getElementById('currentNum').textContent=cur.num;
+    document.getElementById('currentName').textContent=cur.nama;
+    document.getElementById('currentDest').textContent=cur.layanan;
+  } else {
+    document.getElementById('currentNum').textContent='—';
+    document.getElementById('currentName').textContent='Belum ada panggilan';
+    document.getElementById('currentDest').textContent='—';
+  }
+  if(nxt){
+    document.getElementById('nextNum').textContent=nxt.num;
+    document.getElementById('nextName').textContent=nxt.nama;
+    document.getElementById('nextDest').textContent=nxt.layanan;
+  } else {
+    document.getElementById('nextNum').textContent='—';
+    document.getElementById('nextName').textContent='—';
+    document.getElementById('nextDest').textContent='—';
+  }
+
+  if(nxt) document.getElementById('callNextInfo').textContent=`Berikutnya: ${nxt.num} — ${nxt.nama} (${nxt.layanan})`;
+  else document.getElementById('callNextInfo').textContent='Tidak ada antrian menunggu';
+
+  // Main queue table (with tanggapan column)
+  const tbody=document.getElementById('queueTableBody');
+  if(!queue.length){ tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">Belum ada antrian hari ini</td></tr>'; }
+  else {
+    tbody.innerHTML=queue.map(q=>`
+      <tr class="${q.status==='dipanggil'?'queue-row-active':''}">
+        <td><span class="queue-num">${q.num}</span></td>
+        <td><strong>${q.nama}</strong><br><small style="color:var(--gray-400)">${q.hp}</small></td>
+        <td><span class="tag">${q.layanan}</span></td>
+        <td><small>${q.time}</small></td>
+        <td>${statusBadge(q.status)}</td>
+        <td>
+          ${q.responsePetugas
+            ? `<button class="btn btn-sky btn-sm" onclick="viewTanggapanModal('${q.layanan.replace(/'/g,"\\'")}','${q.responsePetugas.replace(/'/g,"\\'").replace(/\n/g,' ')}')">💬 Lihat Info</button>`
+            : '<span style="color:var(--gray-300);font-size:12px">—</span>'}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // Admin queue table
+  const adTbody=document.getElementById('adQueueTbody');
+  const displayQ=queue.filter(q=>q.status!=='selesai');
+  if(!displayQ.length) adTbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-400)">Tidak ada antrian aktif</td></tr>';
+  else adTbody.innerHTML=displayQ.map(q=>`
+    <tr>
+      <td><span class="queue-num">${q.num}</span></td>
+      <td><strong>${q.nama}</strong></td>
+      <td><span class="tag">${q.layanan}</span></td>
+      <td><small>${q.time}</small></td>
+      <td>${statusBadge(q.status)}</td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="callSpecific(${q.id})">📢</button>
+        <button class="btn btn-ghost btn-sm" onclick="markDone(${q.id})">✅</button>
+        <button class="btn btn-amber btn-sm" onclick="markSkip(${q.id})">⏭</button>
+      </td>
+    </tr>
+  `).join('');
+
+  // Full queue table
+  const fullTbody=document.getElementById('adFullQueueTbody');
+  if(!queue.length) fullTbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--gray-400)">Belum ada antrian</td></tr>';
+  else fullTbody.innerHTML=queue.map(q=>`
+    <tr>
+      <td><span class="queue-num">${q.num}</span></td>
+      <td><strong>${q.nama}</strong></td>
+      <td><small>${q.nik||'—'}</small></td>
+      <td><span class="tag">${q.layanan}</span></td>
+      <td><small>${q.email}</small></td>
+      <td>${statusBadge(q.status)}</td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="callSpecific(${q.id})">📢</button>
+        <button class="btn btn-ghost btn-sm" onclick="markDone(${q.id})">✅</button>
+        <button class="btn btn-danger btn-sm" onclick="confirmHapus(${q.id})">🗑</button>
+      </td>
+    </tr>
+  `).join('');
+
+  renderPasienTable();
+  renderLaporan();
+  renderPetugasGrid();
+}
+
+function statusBadge(status){
+  const map={menunggu:'badge-amber Menunggu',dipanggil:'badge-teal Dipanggil',selesai:'badge-green Selesai',dilewati:'badge-gray Dilewati'};
+  const parts=(map[status]||'badge-gray —').split(' ');
+  return `<span class="badge ${parts[0]}">${parts[1]}</span>`;
+}
+
+// ============ NAVIGATION ============
+function showPage(id, e){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(e && e.target) e.target.classList.add('active');
+  if(id==='admin') updateDisplays();
+}
+
+function showAdminSection(id){
+  document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.admin-menu li a').forEach(a=>a.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+  if(id==='adm-tanggapan'){ renderTanggapanAdmin(); renderTindakLanjutAdmin(); }
+  if(id==='adm-pengaturan-layanan'){ renderJamPelayananEditor(); renderBiayaLayananEditor(); }
+  updateDisplays();
+}
+
+// ============ JAM PELAYANAN EDITOR ============
+function renderJamPelayananEditor(){
+  const el = document.getElementById('jamPelayananEditor');
+  if(!el) return;
+  el.innerHTML = jamPelayanan.map((j,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <input type="text" id="jamHari_${i}" value="${j.hari}" placeholder="Hari" style="flex:1;padding:8px 10px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit">
+      <span style="font-size:13px;color:var(--gray-500)">:</span>
+      <input type="text" id="jamWaktu_${i}" value="${j.jam}" placeholder="Jam (contoh: 07.30 – 14.00)" style="flex:1.2;padding:8px 10px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit">
+      <button class="btn btn-danger btn-sm" onclick="removeJamPelayanan(${i})" style="padding:6px 10px">🗑</button>
+    </div>
+  `).join('');
+}
+function addJamPelayanan(){
+  jamPelayanan.push({hari:'', jam:''});
+  renderJamPelayananEditor();
+}
+function removeJamPelayanan(i){
+  jamPelayanan.splice(i,1);
+  renderJamPelayananEditor();
+  renderJamPelayananDisplay();
+}
+function saveJamPelayanan(){
+  jamPelayanan = jamPelayanan.map((_,i)=>({
+    hari: document.getElementById('jamHari_'+i)?.value.trim()||'',
+    jam:  document.getElementById('jamWaktu_'+i)?.value.trim()||''
+  })).filter(j=>j.hari&&j.jam);
+  renderJamPelayananDisplay();
+  toast('✅ Jam pelayanan berhasil disimpan!','success');
+}
+function renderJamPelayananDisplay(){
+  const el = document.getElementById('jamPelayananDisplay');
+  if(!el) return;
+  el.innerHTML = jamPelayanan.length
+    ? jamPelayanan.map(j=>`<div style="font-size:13px;color:var(--gray-700);margin-bottom:4px">📅 ${j.hari}: ${j.jam}</div>`).join('')
+    : '<div style="font-size:13px;color:var(--gray-400)">Belum diatur</div>';
+}
+
+// ============ BIAYA LAYANAN EDITOR ============
+function renderBiayaLayananEditor(){
+  const el = document.getElementById('biayaLayananEditor');
+  if(!el) return;
+  el.innerHTML = Object.entries(biayaLayanan).map(([layanan, biaya])=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-100)">
+      <span style="flex:1;font-size:13px;font-weight:600;color:var(--gray-700)">${layanan}</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:12px;color:var(--gray-500)">Rp</span>
+        <input type="number" id="biaya_${btoa(encodeURIComponent(layanan)).replace(/[=+/]/g,'_')}"
+          value="${biaya}" min="0" step="5000"
+          style="width:110px;padding:6px 8px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit;text-align:right"
+          placeholder="0">
+        ${biaya===0?'<span style="font-size:11px;color:var(--green);font-weight:700;margin-left:4px">GRATIS</span>':''}
+      </div>
+    </div>
+  `).join('');
+}
+function saveBiayaLayanan(){
+  Object.keys(biayaLayanan).forEach(layanan=>{
+    const key = btoa(encodeURIComponent(layanan)).replace(/[=+/]/g,'_');
+    const el = document.getElementById('biaya_'+key);
+    if(el) biayaLayanan[layanan] = parseInt(el.value)||0;
+  });
+  toast('✅ Biaya layanan berhasil disimpan!','success');
+}
+
+// ============ MODAL ============
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ============ TOAST ============
+function toast(msg, type='success'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.className='show '+(type||'');
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>{ el.className=''; },3200);
+}
+
+// ============ INIT ============
+document.addEventListener('DOMContentLoaded',()=>{
+  const now=new Date();
+  document.getElementById('currentDateDisplay').textContent=now.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  renderPetugasGrid();
+  renderJamPelayananDisplay();
+  updateDisplays();
+  // Overlay dibiarkan tampil — suara hanya akan jalan setelah user klik tombol
+  // (wajib karena browser modern blokir audio tanpa interaksi pengguna)
+});
+</script>
+</body>
+</html>
